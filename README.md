@@ -1,8 +1,8 @@
-# 見積書・請求書作成システム (Google Apps Script)
+# 見積書・請求書作成システム (Google Apps Script + TypeScript)
 
 ## 📄 概要
 
-Googleスプレッドシート上のボタン操作により、入力された顧客情報・明細データを元に「見積書」または「請求書」をPDFとして生成し、指定されたメールアドレスに送信する自動化処理をGoogle Apps Script（GAS）で実装したシステムです。
+Googleスプレッドシート上のボタン操作により、入力された顧客情報・明細データを元に「見積書」または「請求書」をPDFとして生成し、指定されたメールアドレスに送信する自動化処理をGoogle Apps Script（GAS）でTypeScriptを使用して実装したシステムです。
 
 ## 🚀 セットアップ手順
 
@@ -12,15 +12,38 @@ Googleスプレッドシート上のボタン操作により、入力された�
 2. 「新しいプロジェクト」をクリック
 3. プロジェクト名を「見積書請求書システム」に変更
 
-### 2. スクリプトファイルの追加
+### 2. TypeScript開発環境のセットアップ
+
+このプロジェクトはTypeScriptで開発されています。ローカル開発を行う場合は以下の手順を実行してください：
+
+```bash
+# 依存関係のインストール
+npm install
+
+# TypeScriptコンパイル
+npm run build
+
+# 型チェック
+npm run type-check
+```
+
+### 3. スクリプトファイルの追加
 
 以下のファイルをGoogle Apps Scriptプロジェクトに追加してください：
 
-- **Code.gs** - メイン処理
-- **Config.gs** - 設定定数
-- **Utils.gs** - ユーティリティ関数
+**TypeScriptソースファイル（推奨）：**
+- **src/Code.ts** - メイン処理
+- **src/Config.ts** - 設定定数
+- **src/Utils.ts** - ユーティリティ関数
 
-### 3. Googleスプレッドシートの作成と連携
+**またはコンパイル済みJavaScriptファイル：**
+- **dist/Code.js** - メイン処理
+- **dist/Config.js** - 設定定数  
+- **dist/Utils.js** - ユーティリティ関数
+
+> **注意**: Google Apps Scriptエディタに直接TypeScriptファイルをアップロードする場合は、`.ts`ファイルの内容をコピー&ペーストし、ファイル名から`.ts`拡張子を削除してください（例: `Code.ts` → `Code`）。
+
+### 4. Googleスプレッドシートの作成と連携
 
 1. 新しいGoogleスプレッドシートを作成
 2. Google Apps Scriptの「リソース」→「このスクリプトに関連付けられたスプレッドシート」で連携
@@ -117,6 +140,56 @@ EMAIL: {
 - ✅ Google Docsでのバックアップ
 - ✅ エラーハンドリング
 - ✅ 入力データの検証
+- ✅ TypeScriptでの型安全性
+
+## 🛠️ 開発
+
+### TypeScript開発について
+
+このプロジェクトはTypeScriptで開発されており、以下の利点があります：
+
+- **型安全性**: コンパイル時に型エラーを検出
+- **IntelliSense**: IDEでの優れた補完機能
+- **保守性**: 大規模なコードベースでの保守が容易
+- **ドキュメント**: 型定義がドキュメントとして機能
+
+### 開発コマンド
+
+```bash
+# 依存関係のインストール
+npm install
+
+# TypeScriptコンパイル
+npm run build
+
+# ファイル監視モード（開発時）
+npm run watch
+
+# 型チェックのみ実行
+npm run type-check
+```
+
+### ファイル構成
+
+```
+src/
+├── Config.ts    # 設定定数と型定義
+├── Utils.ts     # ユーティリティ関数
+└── Code.ts      # メイン処理
+
+dist/            # コンパイル済みJavaScript
+├── Config.js
+├── Utils.js
+└── Code.js
+```
+
+### 型定義
+
+主要な型定義：
+- `DocumentType`: 書類種別（'見積書' | '請求書'）
+- `ItemData`: 商品明細の型
+- `InputData`: 入力データ全体の型
+- `AppConfig`: アプリケーション設定の型
 
 ## 🔍 トラブルシューティング
 
