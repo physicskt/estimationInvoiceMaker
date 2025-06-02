@@ -1,0 +1,25 @@
+{
+  "name": "estimation-invoice-maker",
+  "version": "1.0.0",
+  "description": "Google Apps Script for creating and sending estimation and invoice documents",
+  "main": "Code.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "google-apps-script",
+    "typescript",
+    "invoice",
+    "estimation",
+    "pdf"
+  ],
+  "author": "physicskt",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/google-apps-script": "^1.0.83",
+    "typescript": "^5.0.0"
+  }
+}
