@@ -1,0 +1,74 @@
+/**
+ * 設定定数
+ * アプリケーション全体で使用される設定値を定義
+ */
+const CONFIG = {
+  // シート名
+  SHEETS: {
+    INPUT: '入力',
+    TEMPLATE: 'テンプレート',
+    HISTORY: '送信履歴'
+  },
+  
+  // 入力シートのセル位置
+  CELLS: {
+    DOCUMENT_TYPE: 'B2',     // 書類種別
+    ISSUE_DATE: 'B3',        // 発行日
+    COMPANY_NAME: 'B4',      // 宛先会社名
+    CONTACT_NAME: 'B5',      // 担当者名
+    ADDRESS: 'B6',           // 住所
+    EMAIL: 'B7',             // メールアドレス
+    REMARKS: 'B8',           // 備考
+    TOTAL_AMOUNT: 'F15',     // 小計
+    TAX: 'F16',              // 消費税
+    GRAND_TOTAL: 'F17'       // 合計金額
+  },
+  
+  // 入力シートの範囲
+  RANGES: {
+    ITEMS: 'A10:D14'         // 商品明細（品目、数量、単価、小計）
+  },
+  
+  // テンプレートシートのセル位置
+  TEMPLATE_CELLS: {
+    DOCUMENT_TYPE: 'A1',     // 書類種別
+    ISSUE_DATE: 'F2',        // 発行日
+    COMPANY_NAME: 'A4',      // 宛先会社名
+    CONTACT_NAME: 'A5',      // 担当者名
+    ADDRESS: 'A6',           // 住所
+    REMARKS: 'A20',          // 備考
+    TOTAL_AMOUNT: 'F15',     // 小計
+    TAX: 'F16',              // 消費税
+    GRAND_TOTAL: 'F17'       // 合計金額
+  },
+  
+  // テンプレートシートの範囲
+  TEMPLATE_RANGES: {
+    ITEMS_START_ROW: 10,     // 商品明細開始行
+    ITEMS_MAX_ROWS: 5        // 商品明細最大行数
+  },
+  
+  // フォルダ名
+  FOLDERS: {
+    ESTIMATES: '見積書',
+    INVOICES: '請求書',
+    BACKUP: 'バックアップ'
+  },
+  
+  // メール設定
+  EMAIL: {
+    SENDER_COMPANY: '株式会社サンプル',
+    SENDER_DEPARTMENT: '営業部',
+    SENDER_NAME: '山田太郎'
+  },
+  
+  // 送信履歴シートのヘッダー
+  HISTORY_HEADERS: [
+    '送信日時',
+    '書類種別',
+    '宛先会社',
+    'メールアドレス',
+    'ファイル名',
+    'ファイルURL'
+  ]
+};
