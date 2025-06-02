@@ -10,24 +10,102 @@
 4. プロジェクト名を「見積書請求書システム」に変更
 5. 「保存」をクリック
 
-### Step 2: スクリプトファイルの追加
+### Step 2: 開発環境のセットアップ
 
-#### メインファイル（Code.gs）の作成
-1. デフォルトの「コード.gs」ファイルに`Code.gs`の内容をコピー&ペースト
+このプロジェクトはTypeScriptで開発されています。以下の2つの方法でセットアップできます：
+
+#### オプション A: claspを使用した自動デプロイ（推奨）
+
+claspを使用することで、ローカルで開発したコードを直接Google Apps Scriptにデプロイできます。
+
+**前提条件:**
+- Node.js（v14以上）がインストールされていること
+- npmが使用可能であること
+
+**手順:**
+
+1. **依存関係のインストール**
+```bash
+npm install
+```
+
+2. **claspの認証**
+```bash
+npm run clasp:login
+```
+ブラウザが開くので、Google Apps Scriptへのアクセスを許可してください。
+
+3. **新しいApps Scriptプロジェクトの作成**
+```bash
+npm run clasp:create
+```
+
+4. **TypeScriptをコンパイルしてデプロイ**
+```bash
+npm run deploy
+```
+
+これで、Google Apps Scriptプロジェクトに必要なファイルが自動的にアップロードされます。
+
+#### claspの設定ファイル
+
+以下のファイルが自動的に作成・管理されます：
+
+- **`.clasp.json`**: プロジェクト設定（scriptId、rootDir、filePushOrder）
+- **`appscript.json`**: Google Apps Scriptマニフェストファイル
+- **`~/.clasprc.json`**: 認証情報（自動作成、gitignoreに含まれる）
+
+**重要**: `.clasp.json`には機密情報（scriptId）が含まれるため、`.gitignore`に追加済みです。チーム開発の場合は`.clasp.json.example`をコピーして各自でscriptIdを設定してください。
+
+**既存プロジェクトとの連携:**
+既存のGoogle Apps Scriptプロジェクトがある場合：
+
+```bash
+# .clasp.jsonファイルを作成
+cp .clasp.json.example .clasp.json
+
+# .clasp.jsonのscriptIdを既存のプロジェクトIDに変更
+# scriptIdはGoogle Apps ScriptのURLから取得できます
+# https://script.google.com/d/{SCRIPT_ID}/edit
+
+# デプロイ実行
+npm run deploy
+```
+
+#### オプション B: 手動でのファイル追加
+
+claspを使用しない場合の手動セットアップ手順：
+
+**TypeScriptソースファイルの使用（推奨）：**
+
+**メインファイル（Code）の作成**
+1. デフォルトの「コード.gs」ファイルに`src/Code.ts`の内容をコピー&ペースト
 2. 「保存」をクリック
 
-#### 設定ファイル（Config.gs）の追加
+**設定ファイル（Config）の追加**
 1. ファイルメニューの「+」ボタンをクリック
 2. 「スクリプト」を選択
 3. ファイル名を「Config」に変更
-4. `Config.gs`の内容をコピー&ペースト
+4. `src/Config.ts`の内容をコピー&ペースト
 5. 「保存」をクリック
 
-#### ユーティリティファイル（Utils.gs）の追加
+**ユーティリティファイル（Utils）の追加**
 1. ファイルメニューの「+」ボタンをクリック
 2. 「スクリプト」を選択
 3. ファイル名を「Utils」に変更
-4. `Utils.gs`の内容をコピー&ペースト
+4. `src/Utils.ts`の内容をコピー&ペースト
+5. 「保存」をクリック
+
+#### オプション B: コンパイル済みJavaScriptファイルの使用
+
+ローカルでTypeScriptをコンパイルしてからJavaScriptファイルを使用する場合：
+
+```bash
+npm install
+npm run build
+```
+
+その後、`dist/`フォルダ内の`.js`ファイルを上記と同様の手順で追加してください。
 5. 「保存」をクリック
 
 ### Step 3: Googleスプレッドシートの作成
@@ -36,7 +114,19 @@
 2. 「空白のスプレッドシート」をクリック
 3. スプレッドシート名を「見積書請求書システム」に変更
 
-### Step 4: スクリプトとスプレッドシートの連携
+### Step 4: スプレッドシートとの連携（claspの場合）
+
+claspを使用した場合、スクリプトは自動的にデプロイされています。続いて：
+
+1. 新しいGoogleスプレッドシートを作成 https://sheets.google.com/
+2. スプレッドシート名を「見積書請求書システム」に変更
+3. スプレッドシートのIDをコピー（URLの`/d/{SPREADSHEET_ID}/edit`部分）
+4. Google Apps Scriptコンソールで該当プロジェクトを開く
+5. ライブラリで必要に応じてスプレッドシートと連携
+
+### Step 5: スプレッドシートとの連携（手動の場合）
+
+手動でファイルをアップロードした場合の連携手順：
 
 1. Google Apps Scriptエディタに戻る
 2. 左メニューの「トリガー」をクリック
@@ -46,7 +136,22 @@
 6. 「スプレッドシートを選択」で作成したスプレッドシートを選択
 7. 「保存」をクリック
 
-### Step 5: 初期セットアップの実行
+### Step 4: 初期セットアップの実行（claspの場合）
+
+claspを使用した場合、スクリプトが既にデプロイされているので、初期セットアップを実行します：
+
+1. Google Apps Scriptコンソール（https://script.google.com/）にアクセス
+2. デプロイしたプロジェクトを開く
+3. 「initialSetup」関数を選択
+4. 「実行」ボタンをクリック
+5. 初回実行時に権限の承認が求められます：
+   - 「承認が必要です」→「権限を確認」をクリック
+   - Googleアカウントを選択
+   - 「詳細」→「見積書請求書システム（安全ではないページ）に移動」をクリック
+   - 「許可」をクリック
+6. 実行が完了すると「初期セットアップが完了しました」のメッセージが表示されます
+
+### Step 5: 初期セットアップの実行（手動の場合）
 
 1. Google Apps Scriptエディタで「initialSetup」関数を選択
 2. 「実行」ボタンをクリック
@@ -85,7 +190,8 @@
 
 ### 確認項目
 - [ ] Google Apps Scriptプロジェクトが作成されている
-- [ ] 3つのスクリプトファイルが追加されている
+- [ ] 3つのスクリプトファイル（Code, Config, Utils）が追加されている
+- [ ] TypeScriptまたはJavaScriptコードが正しく貼り付けられている
 - [ ] Googleスプレッドシートが作成されている
 - [ ] 「入力」シートと「テンプレート」シートが作成されている
 - [ ] 送信ボタンが配置され、スクリプトが割り当てられている
@@ -100,7 +206,33 @@
 
 ## 🚨 トラブルシューティング
 
-### よくある問題と解決方法
+### claspに関する問題
+
+#### 「User has not enabled the Apps Script API」エラー
+- **原因**: Google Apps Script APIが無効
+- **解決方法**: https://script.google.com/home/usersettings にアクセスし、「Google Apps Script API」を有効にする
+
+#### 「Invalid authentication credentials」エラー
+- **原因**: 認証情報の問題
+- **解決方法**: 
+  ```bash
+  npm run clasp:login
+  ```
+  認証情報をリセットしたい場合は `~/.clasprc.json` を削除してから再ログイン
+
+#### 「File not found in project」エラー
+- **原因**: scriptIdが間違っている
+- **解決方法**: `.clasp.json`の`scriptId`を確認。Google Apps ScriptのURLから正しいIDを取得
+
+#### push後にファイルが反映されない
+- **原因**: ビルドファイルが古い、または設定エラー
+- **解決方法**: 
+  ```bash
+  npm run build  # 最新のJavaScriptファイルを生成
+  npm run clasp:push
+  ```
+
+### 従来の問題
 
 #### 「スクリプトの実行権限がありません」
 - **原因**: Google Apps Scriptの実行権限が不足
