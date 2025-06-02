@@ -7,7 +7,12 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "lint": "eslint src/**/*.ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "clasp:login": "clasp login",
+    "clasp:create": "clasp create --type standalone",
+    "clasp:push": "npm run build && clasp push",
+    "clasp:deploy": "npm run build && clasp push && clasp deploy",
+    "deploy": "npm run build && clasp push"
   },
   "keywords": [
     "google-apps-script",
@@ -19,6 +24,7 @@
   "author": "physicskt",
   "license": "MIT",
   "devDependencies": {
+    "@google/clasp": "^2.4.2",
     "@types/google-apps-script": "^1.0.83",
     "typescript": "^5.0.0"
   }

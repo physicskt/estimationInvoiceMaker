@@ -12,9 +12,59 @@ Googleスプレッドシート上のボタン操作により、入力された�
 2. 「新しいプロジェクト」をクリック
 3. プロジェクト名を「見積書請求書システム」に変更
 
-### 2. TypeScript開発環境のセットアップ
+### 2. 開発からデプロイまでの完全なワークフロー
 
-このプロジェクトはTypeScriptで開発されています。ローカル開発を行う場合は以下の手順を実行してください：
+このプロジェクトでは、ローカルでTypeScriptを使用して開発し、claspを使用してGoogle Apps Scriptにデプロイします。
+
+#### 2.1 環境セットアップ
+
+```bash
+# 1. リポジトリをクローン（または依存関係をインストール）
+npm install
+
+# 2. claspにログイン
+npm run clasp:login
+```
+
+#### 2.2 新規プロジェクトの場合
+
+```bash
+# 新しいGoogle Apps Scriptプロジェクトを作成
+npm run clasp:create
+
+# TypeScriptをコンパイルしてデプロイ
+npm run deploy
+```
+
+#### 2.3 既存プロジェクトの場合
+
+```bash
+# .clasp.jsonファイルを作成
+cp .clasp.json.example .clasp.json
+
+# .clasp.jsonのscriptIdを既存のプロジェクトIDに変更
+# scriptIdはGoogle Apps ScriptのURLから取得: https://script.google.com/d/{SCRIPT_ID}/edit
+
+# TypeScriptをコンパイルしてデプロイ
+npm run deploy
+```
+
+#### 2.4 開発ワークフロー
+
+```bash
+# ファイル変更を監視（開発時）
+npm run watch
+
+# 変更をGoogle Apps Scriptにプッシュ
+npm run clasp:push
+
+# または、ビルドとプッシュを一度に実行
+npm run deploy
+```
+
+### 3. TypeScript開発環境のセットアップ（手動デプロイの場合）
+
+このプロジェクトはTypeScriptで開発されています。claspを使用しない手動デプロイの場合は以下の手順を実行してください：
 
 ```bash
 # 依存関係のインストール
@@ -27,9 +77,42 @@ npm run build
 npm run type-check
 ```
 
-### 3. スクリプトファイルの追加
+### 4. Google Apps Script CLIセットアップ（clasp）（推奨）
+
+claspを使用することで、ローカルで開発したTypeScriptコードを直接Google Apps Scriptにデプロイできます：
+
+#### 3.1 claspの初期設定
+
+```bash
+# claspにログイン
+npm run clasp:login
+
+# 新しいApps Scriptプロジェクトを作成
+npm run clasp:create
+
+# 既存のプロジェクトを使用する場合は.clasp.jsonを設定
+cp .clasp.json.example .clasp.json
+# .clasp.jsonのscriptIdを既存のプロジェクトIDに変更
+```
+
+#### 3.2 デプロイメント
+
+```bash
+# TypeScriptをコンパイルしてGoogle Apps Scriptにプッシュ
+npm run clasp:push
+
+# または、ビルドとプッシュを一度に実行
+npm run deploy
+```
+
+### 5. スクリプトファイルの追加（手動の場合）
 
 以下のファイルをGoogle Apps Scriptプロジェクトに追加してください：
+
+**claspを使用する場合（推奨）：**
+上記の手順3でセットアップ後、`npm run deploy`を実行するだけです。
+
+**手動でファイルを追加する場合：**
 
 **TypeScriptソースファイル（推奨）：**
 - **src/Code.ts** - メイン処理
@@ -43,25 +126,25 @@ npm run type-check
 
 > **注意**: Google Apps Scriptエディタに直接TypeScriptファイルをアップロードする場合は、`.ts`ファイルの内容をコピー&ペーストし、ファイル名から`.ts`拡張子を削除してください（例: `Code.ts` → `Code`）。
 
-### 4. Googleスプレッドシートの作成と連携
+### 6. Googleスプレッドシートの作成と連携
 
 1. 新しいGoogleスプレッドシートを作成
 2. Google Apps Scriptの「リソース」→「このスクリプトに関連付けられたスプレッドシート」で連携
 
-### 4. 初期セットアップの実行
+### 7. 初期セットアップの実行
 
 1. Google Apps Scriptエディタで `initialSetup` 関数を実行
 2. 必要な権限を許可
 3. 入力シートとテンプレートシートが自動作成されます
 
-### 5. 送信ボタンの設定
+### 8. 送信ボタンの設定
 
 1. 入力シートのB19セルを選択
 2. 「挿入」→「図形描画」でボタンを作成
 3. ボタンに「送信」と入力
 4. ボタンを右クリック→「スクリプトを割り当て」→ `sendDocument` を入力
 
-### 6. フォルダ構造の準備
+### 9. フォルダ構造の準備
 
 スプレッドシートと同じフォルダに以下のフォルダを作成してください：
 - **見積書** - 見積書PDFの保存先
@@ -153,7 +236,30 @@ EMAIL: {
 - **保守性**: 大規模なコードベースでの保守が容易
 - **ドキュメント**: 型定義がドキュメントとして機能
 
-### 開発コマンド
+### 開発からclasp pushまでの完全手順
+
+```bash
+# 1. 初回セットアップ
+npm install                    # 依存関係のインストール
+npm run clasp:login           # claspにログイン
+npm run clasp:create          # 新規プロジェクト作成（または既存プロジェクトの.clasp.json設定）
+
+# 2. TypeScript開発
+npm run watch                 # ファイル変更監視開始（別ターミナル）
+# src/フォルダでTypeScriptファイルを編集
+
+# 3. ビルドとデプロイ
+npm run build                 # TypeScriptコンパイル
+npm run clasp:push           # Google Apps Scriptにプッシュ
+
+# または、ワンコマンドでビルド+プッシュ
+npm run deploy               # ビルドとプッシュを一度に実行
+
+# 4. 型チェック（任意）
+npm run type-check           # 型エラーの確認
+```
+
+### 利用可能なNPMスクリプト
 
 ```bash
 # 依存関係のインストール
@@ -167,6 +273,45 @@ npm run watch
 
 # 型チェックのみ実行
 npm run type-check
+
+# claspコマンド
+npm run clasp:login      # claspにログイン
+npm run clasp:create     # 新しいApps Scriptプロジェクトを作成
+npm run clasp:push       # ビルド後、Google Apps Scriptにプッシュ
+npm run deploy           # ビルドとプッシュを一度に実行
+```
+
+### 開発からデプロイまでの完全なワークフロー
+
+```bash
+# 1. 初回セットアップ
+npm install
+npm run clasp:login
+npm run clasp:create  # 新規プロジェクトの場合
+
+# 2. 開発サイクル
+npm run watch         # 別ターミナルで実行（ファイル変更を監視）
+
+# 3. デプロイ
+npm run deploy        # TypeScriptをコンパイルしてGoogle Apps Scriptにプッシュ
+```
+
+### 既存プロジェクトとの連携
+
+既存のGoogle Apps Scriptプロジェクトがある場合：
+
+```bash
+# 1. .clasp.jsonファイルを作成
+cp .clasp.json.example .clasp.json
+
+# 2. scriptIdを編集
+# .clasp.jsonファイルのscriptIdを既存のプロジェクトIDに変更
+
+# 3. appscript.jsonをプロジェクトに追加（必要に応じて）
+# 既存プロジェクトにappscript.jsonがない場合、自動的に追加されます
+
+# 4. デプロイ
+npm run deploy
 ```
 
 ### ファイル構成
@@ -192,6 +337,24 @@ dist/            # コンパイル済みJavaScript
 - `AppConfig`: アプリケーション設定の型
 
 ## 🔍 トラブルシューティング
+
+### claspに関する問題
+
+1. **「User has not enabled the Apps Script API」エラー**
+   - https://script.google.com/home/usersettings にアクセス
+   - 「Google Apps Script API」を有効にしてください
+
+2. **「Invalid authentication credentials」エラー**
+   - `npm run clasp:login`を再実行してください
+   - 認証情報をクリアしたい場合は`~/.clasprc.json`を削除してください
+
+3. **「File not found in project」エラー**
+   - `.clasp.json`の`scriptId`が正しいことを確認してください
+   - プロジェクトURLの`/d/{SCRIPT_ID}/edit`部分がscriptIdです
+
+4. **push後にファイルが見つからない**
+   - `.clasp.json`の`rootDir`と`filePushOrder`を確認してください
+   - `npm run build`でdistフォルダが作成されていることを確認してください
 
 ### よくある問題
 

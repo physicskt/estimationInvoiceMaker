@@ -1,0 +1,9 @@
+{
+  "scriptId": "YOUR_SCRIPT_ID_HERE",
+  "rootDir": "./dist",
+  "filePushOrder": [
+    "Config.js",
+    "Utils.js", 
+    "Code.js"
+  ]
+}
