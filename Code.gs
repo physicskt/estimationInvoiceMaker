@@ -4,6 +4,9 @@
  */
 function sendDocument() {
   try {
+    // 処理開始のメッセージ
+    SpreadsheetApp.getUi().alert('処理を開始します', '見積書・請求書の作成を開始します。しばらくお待ちください。', SpreadsheetApp.getUi().ButtonSet.OK);
+    
     // 現在のスプレッドシートを取得
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     
@@ -12,7 +15,18 @@ function sendDocument() {
     
     // 入力データの検証
     if (!validateInputData(inputData)) {
-      SpreadsheetApp.getUi().alert('入力データに不備があります。必要な項目をすべて入力してください。');
+      return; // エラーメッセージは validateInputData 内で表示
+    }
+    
+    // 確認ダイアログ
+    const confirmResult = SpreadsheetApp.getUi().alert(
+      '送信確認',
+      `${inputData.documentType}を以下の宛先に送信します。\n\n宛先: ${inputData.companyName}\nメール: ${inputData.email}\n\n送信しますか？`,
+      SpreadsheetApp.getUi().ButtonSet.YES_NO
+    );
+    
+    if (confirmResult !== SpreadsheetApp.getUi().Button.YES) {
+      SpreadsheetApp.getUi().alert('処理をキャンセルしました。');
       return;
     }
     
@@ -32,11 +46,15 @@ function sendDocument() {
     createBackupDocument(inputData, savedFile);
     
     // 完了メッセージを表示
-    SpreadsheetApp.getUi().alert(`${inputData.documentType}を正常に送信しました。\n宛先: ${inputData.email}\nファイル名: ${savedFile.getName()}`);
+    SpreadsheetApp.getUi().alert(
+      '送信完了', 
+      `${inputData.documentType}を正常に送信しました。\n\n宛先: ${inputData.email}\nファイル名: ${savedFile.getName()}\n保存先: ${savedFile.getUrl()}`,
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
     
   } catch (error) {
     console.error('エラーが発生しました:', error);
-    SpreadsheetApp.getUi().alert(`エラーが発生しました: ${error.message}`);
+    SpreadsheetApp.getUi().alert('エラー', `処理中にエラーが発生しました:\n\n${error.message}\n\n管理者にお問い合わせください。`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
 
@@ -90,19 +108,62 @@ function getItemsData(inputSheet) {
  * 入力データの検証
  */
 function validateInputData(data) {
+  const errors = [];
+  
   // 必須項目のチェック
-  if (!data.documentType || !data.companyName || !data.email) {
-    return false;
+  if (!data.documentType) {
+    errors.push('書類種別が入力されていません');
+  } else if (data.documentType !== '見積書' && data.documentType !== '請求書') {
+    errors.push('書類種別は「見積書」または「請求書」を入力してください');
   }
   
-  // メールアドレスの形式チェック
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(data.email)) {
-    return false;
+  if (!data.companyName) {
+    errors.push('宛先会社名が入力されていません');
   }
   
-  // 商品明細が最低1件は必要
+  if (!data.email) {
+    errors.push('メールアドレスが入力されていません');
+  } else {
+    // メールアドレスの形式チェック
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(data.email)) {
+      errors.push('メールアドレスの形式が正しくありません');
+    }
+  }
+  
+  if (!data.issueDate) {
+    errors.push('発行日が入力されていません');
+  } else if (!(data.issueDate instanceof Date)) {
+    errors.push('発行日の形式が正しくありません');
+  }
+  
+  // 商品明細のチェック
   if (!data.items || data.items.length === 0) {
+    errors.push('商品明細が入力されていません');
+  } else {
+    // 各明細の妥当性チェック
+    for (let i = 0; i < data.items.length; i++) {
+      const item = data.items[i];
+      if (!item.name) {
+        errors.push(`商品明細${i + 1}行目: 品目名が入力されていません`);
+      }
+      if (!item.quantity || item.quantity <= 0) {
+        errors.push(`商品明細${i + 1}行目: 数量が正しく入力されていません`);
+      }
+      if (!item.unitPrice || item.unitPrice <= 0) {
+        errors.push(`商品明細${i + 1}行目: 単価が正しく入力されていません`);
+      }
+    }
+  }
+  
+  // 金額のチェック
+  if (!data.grandTotal || data.grandTotal <= 0) {
+    errors.push('合計金額が正しく計算されていません');
+  }
+  
+  // エラーがある場合はアラートで表示
+  if (errors.length > 0) {
+    SpreadsheetApp.getUi().alert('入力エラー', errors.join('\n'), SpreadsheetApp.getUi().ButtonSet.OK);
     return false;
   }
   
