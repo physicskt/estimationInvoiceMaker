@@ -76,11 +76,12 @@ function setupInputSheetLayout(sheet) {
   const labels = [
     ['書類種別', 'B2', '見積書 または 請求書'],
     ['発行日', 'B3', '例: 2024/06/01'],
-    ['宛先会社名', 'B4', '必須'],
-    ['担当者名', 'B5', '任意'],
-    ['住所', 'B6', '任意'],
-    ['メールアドレス', 'B7', '必須'],
-    ['備考', 'B8', '任意']
+    ['書類番号', 'B4', '3桁の数字（例: 001）'],
+    ['宛先会社名', 'B5', '必須'],
+    ['担当者名', 'B6', '任意'],
+    ['住所', 'B7', '任意'],
+    ['メールアドレス', 'B8', '必須'],
+    ['備考', 'B9', '任意']
   ];
   
   labels.forEach(([label, cell, note], index) => {
@@ -330,6 +331,7 @@ function clearInputData() {
     // 基本情報をクリア
     inputSheet.getRange(CONFIG.CELLS.DOCUMENT_TYPE).clearContent();
     inputSheet.getRange(CONFIG.CELLS.ISSUE_DATE).clearContent();
+    inputSheet.getRange(CONFIG.CELLS.DOCUMENT_NUMBER).clearContent();
     inputSheet.getRange(CONFIG.CELLS.COMPANY_NAME).clearContent();
     inputSheet.getRange(CONFIG.CELLS.CONTACT_NAME).clearContent();
     inputSheet.getRange(CONFIG.CELLS.ADDRESS).clearContent();

@@ -30,25 +30,37 @@ function sendDocument() {
       return;
     }
     
+    // メール送信確認ダイアログ
+    const emailConfirmResult = SpreadsheetApp.getUi().alert(
+      'メール送信確認',
+      `PDFの作成・保存後、メールでも送信しますか？\n\n「はい」: PDFを作成・保存・メール送信\n「いいえ」: PDFを作成・保存のみ（メール送信なし）`,
+      SpreadsheetApp.getUi().ButtonSet.YES_NO
+    );
+    
+    const shouldSendEmail = emailConfirmResult === SpreadsheetApp.getUi().Button.YES;
+    
     // PDFを生成
     const pdfBlob = generatePDF(spreadsheet, inputData);
     
     // PDFをフォルダに保存
     const savedFile = savePDFToFolder(pdfBlob, inputData);
     
-    // メール送信
-    sendEmailWithPDF(pdfBlob, inputData);
+    // 条件付きメール送信
+    if (shouldSendEmail) {
+      sendEmailWithPDF(pdfBlob, inputData);
+    }
     
     // 送信履歴を記録
-    recordSendingHistory(spreadsheet, inputData, savedFile);
+    recordSendingHistory(spreadsheet, inputData, savedFile, shouldSendEmail);
     
     // バックアップを作成
     createBackupDocument(inputData, savedFile);
     
     // 完了メッセージを表示
+    const emailStatus = shouldSendEmail ? `\n宛先: ${inputData.email}` : '\n（メール送信なし）';
     SpreadsheetApp.getUi().alert(
-      '送信完了', 
-      `${inputData.documentType}を正常に送信しました。\n\n宛先: ${inputData.email}\nファイル名: ${savedFile.getName()}\n保存先: ${savedFile.getUrl()}`,
+      '処理完了', 
+      `${inputData.documentType}の処理が完了しました。${emailStatus}\nファイル名: ${savedFile.getName()}\n保存先: ${savedFile.getUrl()}`,
       SpreadsheetApp.getUi().ButtonSet.OK
     );
     
@@ -67,6 +79,7 @@ function getInputData(spreadsheet) {
   const data = {
     documentType: inputSheet.getRange(CONFIG.CELLS.DOCUMENT_TYPE).getValue(),
     issueDate: inputSheet.getRange(CONFIG.CELLS.ISSUE_DATE).getValue(),
+    documentNumber: inputSheet.getRange(CONFIG.CELLS.DOCUMENT_NUMBER).getValue(),
     companyName: inputSheet.getRange(CONFIG.CELLS.COMPANY_NAME).getValue(),
     contactName: inputSheet.getRange(CONFIG.CELLS.CONTACT_NAME).getValue(),
     address: inputSheet.getRange(CONFIG.CELLS.ADDRESS).getValue(),
@@ -119,6 +132,16 @@ function validateInputData(data) {
   
   if (!data.companyName) {
     errors.push('宛先会社名が入力されていません');
+  }
+  
+  // 書類番号のチェック
+  if (!data.documentNumber) {
+    errors.push('書類番号が入力されていません');
+  } else {
+    const docNumStr = String(data.documentNumber);
+    if (!/^\d{3}$/.test(docNumStr)) {
+      errors.push('書類番号は3桁の数字で入力してください（例：001, 123）');
+    }
   }
   
   if (!data.email) {
@@ -238,7 +261,8 @@ function updateItemsInTemplate(templateSheet, items) {
  */
 function generateFileName(inputData) {
   const date = Utilities.formatDate(inputData.issueDate, 'Asia/Tokyo', 'yyyyMMdd');
-  return `${inputData.documentType}_${inputData.companyName}_${date}.pdf`;
+  const docNumber = String(inputData.documentNumber).padStart(3, '0');
+  return `${inputData.documentType}-${date}-${docNumber}-${inputData.companyName}.pdf`;
 }
 
 /**
@@ -288,7 +312,7 @@ ${CONFIG.EMAIL.SENDER_DEPARTMENT} ${CONFIG.EMAIL.SENDER_NAME}`;
 /**
  * 送信履歴を記録
  */
-function recordSendingHistory(spreadsheet, inputData, savedFile) {
+function recordSendingHistory(spreadsheet, inputData, savedFile, emailSent) {
   const historySheet = getOrCreateHistorySheet(spreadsheet);
   
   const lastRow = historySheet.getLastRow() + 1;
@@ -300,6 +324,7 @@ function recordSendingHistory(spreadsheet, inputData, savedFile) {
   historySheet.getRange(lastRow, 4).setValue(inputData.email);
   historySheet.getRange(lastRow, 5).setValue(savedFile.getName());
   historySheet.getRange(lastRow, 6).setValue(savedFile.getUrl());
+  historySheet.getRange(lastRow, 7).setValue(emailSent ? 'はい' : 'いいえ');
 }
 
 /**
