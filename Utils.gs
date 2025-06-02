@@ -20,7 +20,102 @@ function getOrCreateFolder(parentFolder, folderName) {
 }
 
 /**
- * 送信履歴シートを取得または作成
+ * 宛名履歴シートを取得または作成
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
+ * @return {GoogleAppsScript.Spreadsheet.Sheet} 宛名履歴シート
+ */
+function getOrCreateCompanyHistorySheet(spreadsheet) {
+  let companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+  
+  if (!companyHistorySheet) {
+    companyHistorySheet = spreadsheet.insertSheet(CONFIG.SHEETS.COMPANY_HISTORY);
+    
+    // ヘッダーを設定
+    const headers = CONFIG.COMPANY_HISTORY_HEADERS;
+    for (let i = 0; i < headers.length; i++) {
+      companyHistorySheet.getRange(1, i + 1).setValue(headers[i]);
+    }
+    
+    // ヘッダー行のフォーマット
+    const headerRange = companyHistorySheet.getRange(1, 1, 1, headers.length);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#e6f3ff');
+    
+    // 列幅を調整
+    companyHistorySheet.setColumnWidth(1, 200); // 会社名
+    companyHistorySheet.setColumnWidth(2, 150); // 最終使用日時
+    companyHistorySheet.setColumnWidth(3, 100); // 使用回数
+  }
+  
+  return companyHistorySheet;
+}
+
+/**
+ * 宛名履歴を更新
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
+ * @param {string} companyName 会社名
+ */
+function updateCompanyHistory(spreadsheet, companyName) {
+  if (!companyName) return;
+  
+  const companyHistorySheet = getOrCreateCompanyHistorySheet(spreadsheet);
+  const lastRow = companyHistorySheet.getLastRow();
+  const currentTime = new Date();
+  
+  // 既存の会社名を検索
+  let foundRow = -1;
+  if (lastRow > 1) {
+    const companies = companyHistorySheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (let i = 0; i < companies.length; i++) {
+      if (companies[i][0] === companyName) {
+        foundRow = i + 2; // 2行目から開始なので+2
+        break;
+      }
+    }
+  }
+  
+  if (foundRow > 0) {
+    // 既存の会社名の場合：最終使用日時と使用回数を更新
+    const currentUsageCount = companyHistorySheet.getRange(foundRow, 3).getValue() || 0;
+    companyHistorySheet.getRange(foundRow, 2).setValue(currentTime);
+    companyHistorySheet.getRange(foundRow, 3).setValue(currentUsageCount + 1);
+  } else {
+    // 新しい会社名の場合：新しい行を追加
+    const newRow = lastRow + 1;
+    companyHistorySheet.getRange(newRow, 1).setValue(companyName);
+    companyHistorySheet.getRange(newRow, 2).setValue(currentTime);
+    companyHistorySheet.getRange(newRow, 3).setValue(1);
+  }
+  
+  // 最終使用日時でソート（降順）
+  if (companyHistorySheet.getLastRow() > 2) {
+    const dataRange = companyHistorySheet.getRange(2, 1, companyHistorySheet.getLastRow() - 1, 3);
+    dataRange.sort({column: 2, ascending: false});
+  }
+}
+
+/**
+ * 宛名履歴一覧を取得
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
+ * @param {number} limit 取得する件数の上限（デフォルト: 10）
+ * @return {Array} 会社名の配列（最近使用した順）
+ */
+function getCompanyHistory(spreadsheet, limit = 10) {
+  const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+  
+  if (!companyHistorySheet || companyHistorySheet.getLastRow() <= 1) {
+    return [];
+  }
+  
+  const lastRow = companyHistorySheet.getLastRow();
+  const actualLimit = Math.min(limit, lastRow - 1);
+  
+  if (actualLimit <= 0) return [];
+  
+  const companies = companyHistorySheet.getRange(2, 1, actualLimit, 1).getValues();
+  return companies.map(row => row[0]).filter(name => name); // 空の値を除外
+}
+
  * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
  * @return {GoogleAppsScript.Spreadsheet.Sheet} 送信履歴シート
  */
@@ -132,6 +227,10 @@ function setupInputSheetLayout(sheet) {
   sheet.getRange('A22').setValue('クリアボタン');
   sheet.getRange('B22').setValue('clearInputData関数を割り当て');
   sheet.getRange('B22').setBackground('#e6e6ff');
+  
+  sheet.getRange('A23').setValue('宛名履歴ボタン');
+  sheet.getRange('B23').setValue('showCompanyHistory関数を割り当て');
+  sheet.getRange('B23').setBackground('#fff2e6');
   
   // 列幅の調整
   sheet.setColumnWidth(1, 120); // A列
@@ -355,7 +454,62 @@ function clearInputData() {
 }
 
 /**
- * システム設定確認
+ * 宛名履歴一覧を表示
+ * 過去に使用した宛先会社名を表示して選択可能にする
+ */
+function showCompanyHistory() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const companyHistory = getCompanyHistory(spreadsheet, 20); // 最大20件取得
+    
+    if (companyHistory.length === 0) {
+      SpreadsheetApp.getUi().alert('宛名履歴', '過去に使用した宛先会社名がありません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    // 履歴一覧を表示
+    let message = '📋 宛名履歴（最近使用した順）\n\n';
+    message += '以下の会社名をコピーして入力シートの「宛先会社名」欄に貼り付けできます：\n\n';
+    
+    companyHistory.forEach((company, index) => {
+      message += `${index + 1}. ${company}\n`;
+    });
+    
+    message += '\n※会社名をクリップボードにコピーするには、この後表示される入力欄に番号を入力してください。';
+    
+    // 番号選択のプロンプト
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.prompt(
+      '宛名履歴',
+      message + '\n\n会社名をクリップボードにコピーしたい場合は、番号を入力してください（1-' + companyHistory.length + '）：',
+      ui.ButtonSet.OK_CANCEL
+    );
+    
+    if (response.getSelectedButton() === ui.Button.OK) {
+      const input = response.getResponseText().trim();
+      const selectedIndex = parseInt(input) - 1;
+      
+      if (selectedIndex >= 0 && selectedIndex < companyHistory.length) {
+        const selectedCompany = companyHistory[selectedIndex];
+        
+        // 入力シートの会社名欄に自動入力
+        const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+        if (inputSheet) {
+          inputSheet.getRange(CONFIG.CELLS.COMPANY_NAME).setValue(selectedCompany);
+          ui.alert('宛名設定完了', `「${selectedCompany}」を宛先会社名欄に設定しました。`, ui.ButtonSet.OK);
+        } else {
+          ui.alert('選択完了', `選択された会社名：「${selectedCompany}」\n\n手動で宛先会社名欄にコピーしてください。`, ui.ButtonSet.OK);
+        }
+      } else {
+        ui.alert('エラー', '無効な番号です。', ui.ButtonSet.OK);
+      }
+    }
+    
+  } catch (error) {
+    console.error('宛名履歴表示エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `宛名履歴の表示中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
  * 必要なシートやフォルダの存在確認とシステム状態をチェック
  */
 function checkSystemStatus() {
@@ -368,6 +522,7 @@ function checkSystemStatus() {
     const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
     const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
     const historySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.HISTORY);
+    const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
     
     if (!inputSheet) {
       issues.push('- 入力シートが存在しません');
@@ -385,6 +540,13 @@ function checkSystemStatus() {
       info.push('📋 送信履歴シート: 初回送信時に作成されます');
     } else {
       info.push('✅ 送信履歴シート: OK');
+    }
+    
+    if (!companyHistorySheet) {
+      info.push('📋 宛名履歴シート: 初回送信時に作成されます');
+    } else {
+      const companyCount = Math.max(0, companyHistorySheet.getLastRow() - 1);
+      info.push(`✅ 宛名履歴シート: OK (${companyCount}件の宛名を記録済み)`);
     }
     
     // フォルダの存在確認
