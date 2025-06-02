@@ -116,6 +116,8 @@ function getCompanyHistory(spreadsheet, limit = 10) {
   return companies.map(row => row[0]).filter(name => name); // 空の値を除外
 }
 
+/**
+ * 送信履歴シートを取得または作成
  * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
  * @return {GoogleAppsScript.Spreadsheet.Sheet} 送信履歴シート
  */
@@ -510,6 +512,9 @@ function showCompanyHistory() {
     SpreadsheetApp.getUi().alert('エラー', `宛名履歴の表示中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
+
+/**
+ * システム設定確認
  * 必要なシートやフォルダの存在確認とシステム状態をチェック
  */
 function checkSystemStatus() {
