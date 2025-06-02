@@ -14,11 +14,12 @@ const CONFIG = {
   CELLS: {
     DOCUMENT_TYPE: 'B2',     // 書類種別
     ISSUE_DATE: 'B3',        // 発行日
-    COMPANY_NAME: 'B4',      // 宛先会社名
-    CONTACT_NAME: 'B5',      // 担当者名
-    ADDRESS: 'B6',           // 住所
-    EMAIL: 'B7',             // メールアドレス
-    REMARKS: 'B8',           // 備考
+    DOCUMENT_NUMBER: 'B4',   // 書類番号（3桁）
+    COMPANY_NAME: 'B5',      // 宛先会社名
+    CONTACT_NAME: 'B6',      // 担当者名
+    ADDRESS: 'B7',           // 住所
+    EMAIL: 'B8',             // メールアドレス
+    REMARKS: 'B9',           // 備考
     TOTAL_AMOUNT: 'F15',     // 小計
     TAX: 'F16',              // 消費税
     GRAND_TOTAL: 'F17'       // 合計金額
@@ -69,6 +70,7 @@ const CONFIG = {
     '宛先会社',
     'メールアドレス',
     'ファイル名',
-    'ファイルURL'
+    'ファイルURL',
+    'メール送信'
   ]
 };
