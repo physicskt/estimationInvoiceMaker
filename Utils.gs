@@ -700,3 +700,50 @@ function setItemRowCount() {
     SpreadsheetApp.getUi().alert('エラー', `明細行数設定中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
+
+/**
+ * テスト機能：設定の妥当性をチェック
+ */
+function testConfiguration() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    let testResults = [];
+    
+    // 設定値の確認
+    testResults.push(`✅ 商品明細最大行数: ${CONFIG.ITEMS_CONFIG.MAX_ROWS}`);
+    testResults.push(`✅ 商品明細開始行: ${CONFIG.ITEMS_CONFIG.START_ROW}`);
+    testResults.push(`✅ デフォルト表示行数: ${CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS}`);
+    
+    // 計算された範囲の確認
+    const calculatedRange = getItemsRangeString();
+    testResults.push(`✅ 動的計算範囲: ${calculatedRange}`);
+    
+    // セル位置の確認
+    testResults.push(`✅ 小計セル: ${CONFIG.CELLS.TOTAL_AMOUNT}`);
+    testResults.push(`✅ 消費税セル: ${CONFIG.CELLS.TAX}`);
+    testResults.push(`✅ 合計セル: ${CONFIG.CELLS.GRAND_TOTAL}`);
+    
+    // テンプレートセル位置の確認
+    testResults.push(`✅ テンプレート小計: ${CONFIG.TEMPLATE_CELLS.TOTAL_AMOUNT}`);
+    testResults.push(`✅ テンプレート消費税: ${CONFIG.TEMPLATE_CELLS.TAX}`);
+    testResults.push(`✅ テンプレート合計: ${CONFIG.TEMPLATE_CELLS.GRAND_TOTAL}`);
+    testResults.push(`✅ テンプレート備考: ${CONFIG.TEMPLATE_CELLS.REMARKS}`);
+    
+    // 範囲の妥当性チェック
+    const endRow = CONFIG.ITEMS_CONFIG.START_ROW + CONFIG.ITEMS_CONFIG.MAX_ROWS - 1;
+    const totalRow = parseInt(CONFIG.CELLS.TOTAL_AMOUNT.substring(1));
+    
+    if (totalRow > endRow) {
+      testResults.push(`✅ 合計行位置は適切です (${totalRow} > ${endRow})`);
+    } else {
+      testResults.push(`❌ 合計行位置が明細行と重複しています (${totalRow} <= ${endRow})`);
+    }
+    
+    const message = '🔧 設定テスト結果\n\n' + testResults.join('\n');
+    ui.alert('設定テスト', message, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('設定テストエラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `設定テスト中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}

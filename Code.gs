@@ -15,6 +15,7 @@ function onOpen() {
     .addSeparator()
     .addItem('⚙️ システム状態確認', 'checkSystemStatus')
     .addItem('🔧 初期セットアップ', 'initialSetup')
+    .addItem('🧪 設定テスト', 'testConfiguration')
     .addToUi();
 }
 
