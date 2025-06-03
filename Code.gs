@@ -1,4 +1,23 @@
 /**
+ * スプレッドシート開封時に実行される関数
+ * メニューを自動で追加する
+ */
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('見積書・請求書システム')
+    .addItem('📄 書類作成・送信', 'sendDocument')
+    .addSeparator()
+    .addItem('🧮 合計計算', 'calculateTotals')
+    .addItem('🧹 入力データクリア', 'clearInputData')
+    .addSeparator()
+    .addItem('📋 宛名履歴表示', 'showCompanyHistory')
+    .addSeparator()
+    .addItem('⚙️ システム状態確認', 'checkSystemStatus')
+    .addItem('🔧 初期セットアップ', 'initialSetup')
+    .addToUi();
+}
+
+/**
  * メイン処理：見積書・請求書の作成・送信・保存
  * スプレッドシート上のボタンから呼び出される
  */
