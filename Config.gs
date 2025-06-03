@@ -21,14 +21,21 @@ const CONFIG = {
     ADDRESS: 'B7',           // 住所
     EMAIL: 'B8',             // メールアドレス
     REMARKS: 'B9',           // 備考
-    TOTAL_AMOUNT: 'D15',     // 小計
-    TAX: 'D16',              // 消費税
-    GRAND_TOTAL: 'D17'       // 合計金額
+    TOTAL_AMOUNT: 'D30',     // 小計
+    TAX: 'D31',              // 消費税
+    GRAND_TOTAL: 'D32'       // 合計金額
+  },
+  
+  // 商品明細設定
+  ITEMS_CONFIG: {
+    MAX_ROWS: 20,            // 最大行数
+    DEFAULT_VISIBLE_ROWS: 10, // デフォルト表示行数
+    START_ROW: 10            // 開始行
   },
   
   // 入力シートの範囲
   RANGES: {
-    ITEMS: 'A10:D14'         // 商品明細（品目、数量、単価、小計）
+    ITEMS: 'A10:D29'         // 商品明細（品目、数量、単価、小計）- 最大20行
   },
   
   // テンプレートシートのセル位置
@@ -38,16 +45,16 @@ const CONFIG = {
     COMPANY_NAME: 'A4',      // 宛先会社名
     CONTACT_NAME: 'A5',      // 担当者名
     ADDRESS: 'A6',           // 住所
-    REMARKS: 'A20',          // 備考
+    REMARKS: 'A34',          // 備考
     TOTAL_AMOUNT: 'D30',     // 小計
-    TAX: 'F16',              // 消費税
-    GRAND_TOTAL: 'F17'       // 合計金額
+    TAX: 'D31',              // 消費税
+    GRAND_TOTAL: 'D32'       // 合計金額
   },
   
   // テンプレートシートの範囲
   TEMPLATE_RANGES: {
     ITEMS_START_ROW: 10,     // 商品明細開始行
-    ITEMS_MAX_ROWS: 5        // 商品明細最大行数
+    ITEMS_MAX_ROWS: 20       // 商品明細最大行数（ITEMS_CONFIG.MAX_ROWSと同期）
   },
   
   // フォルダ名
