@@ -210,8 +210,8 @@ function setupInputSheetLayout(sheet) {
   sheet.getRange('E16').setValue('消費税');
   sheet.getRange('E17').setValue('合計');
   
-  sheet.getRange('E15:E17').setFontWeight('bold').setBackground('#f0f0f0');
-  sheet.getRange('F15:F17').setBorder(true, true, true, true, false, false);
+  sheet.getRange('C15:C17').setFontWeight('bold').setBackground('#f0f0f0');
+  sheet.getRange('C15:D17').setBorder(true, true, true, true, false, false);
   
   // ボタン説明
   sheet.getRange('A19').setValue('操作ボタン');
@@ -279,8 +279,8 @@ function setupTemplateSheetLayout(sheet) {
   sheet.getRange('A1').setFontSize(24).setFontWeight('bold');
   
   // 発行日
-  sheet.getRange('E2').setValue('発行日：');
-  sheet.getRange('E2').setFontWeight('bold');
+  sheet.getRange('D2').setValue('発行日：');
+  sheet.getRange('D2').setFontWeight('bold');
   
   // 宛先情報
   sheet.getRange('A4').setValue('宛先会社名');
@@ -306,12 +306,12 @@ function setupTemplateSheetLayout(sheet) {
   itemRange.setBorder(true, true, true, true, true, true);
   
   // 合計欄
-  sheet.getRange('E15').setValue('小計');
-  sheet.getRange('E16').setValue('消費税');
-  sheet.getRange('E17').setValue('合計');
+  sheet.getRange('C15').setValue('小計');
+  sheet.getRange('C16').setValue('消費税');
+  sheet.getRange('C17').setValue('合計');
   
-  sheet.getRange('E15:F17').setFontWeight('bold');
-  sheet.getRange('F15:F17').setBorder(true, true, true, true, false, false);
+  sheet.getRange('C15:D17').setFontWeight('bold');
+  sheet.getRange('D15:D17').setBorder(true, true, true, true, false, false);
   
   // 備考欄
   sheet.getRange('A19').setValue('備考：');

@@ -21,9 +21,9 @@ const CONFIG = {
     ADDRESS: 'B7',           // 住所
     EMAIL: 'B8',             // メールアドレス
     REMARKS: 'B9',           // 備考
-    TOTAL_AMOUNT: 'F15',     // 小計
-    TAX: 'F16',              // 消費税
-    GRAND_TOTAL: 'F17'       // 合計金額
+    TOTAL_AMOUNT: 'D15',     // 小計
+    TAX: 'D16',              // 消費税
+    GRAND_TOTAL: 'D17'       // 合計金額
   },
   
   // 入力シートの範囲
@@ -34,12 +34,12 @@ const CONFIG = {
   // テンプレートシートのセル位置
   TEMPLATE_CELLS: {
     DOCUMENT_TYPE: 'A1',     // 書類種別
-    ISSUE_DATE: 'F2',        // 発行日
+    ISSUE_DATE: 'D2',        // 発行日
     COMPANY_NAME: 'A4',      // 宛先会社名
     CONTACT_NAME: 'A5',      // 担当者名
     ADDRESS: 'A6',           // 住所
     REMARKS: 'A20',          // 備考
-    TOTAL_AMOUNT: 'F15',     // 小計
+    TOTAL_AMOUNT: 'D30',     // 小計
     TAX: 'F16',              // 消費税
     GRAND_TOTAL: 'F17'       // 合計金額
   },
