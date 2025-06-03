@@ -53,6 +53,9 @@ function sendDocument() {
     // 送信履歴を記録
     recordSendingHistory(spreadsheet, inputData, savedFile, shouldSendEmail);
     
+    // 宛名履歴を更新
+    updateCompanyHistory(spreadsheet, inputData.companyName);
+    
     // バックアップを作成
     createBackupDocument(inputData, savedFile);
     
@@ -203,14 +206,39 @@ function generatePDF(spreadsheet, inputData) {
   // テンプレートシートにデータを反映
   updateTemplateSheet(templateSheet, inputData);
   
-  // PDFとして出力
-  const pdfBlob = DriveApp.getFileById(spreadsheet.getId()).getAs('application/pdf');
+  // 他のシートを一時的に非表示にして、テンプレートシートのみPDFに出力
+  const allSheets = spreadsheet.getSheets();
+  const sheetVisibilityMap = new Map();
   
-  // ファイル名を設定
-  const fileName = generateFileName(inputData);
-  pdfBlob.setName(fileName);
+  // 現在のシートの表示状態を保存し、テンプレート以外を非表示に
+  allSheets.forEach(sheet => {
+    const isHidden = sheet.isSheetHidden();
+    sheetVisibilityMap.set(sheet.getName(), isHidden);
+    
+    if (sheet.getName() !== CONFIG.SHEETS.TEMPLATE) {
+      sheet.hideSheet();
+    }
+  });
   
-  return pdfBlob;
+  try {
+    // PDFとして出力
+    const pdfBlob = DriveApp.getFileById(spreadsheet.getId()).getAs('application/pdf');
+    
+    // ファイル名を設定
+    const fileName = generateFileName(inputData);
+    pdfBlob.setName(fileName);
+    
+    return pdfBlob;
+    
+  } finally {
+    // シートの表示状態を元に戻す
+    allSheets.forEach(sheet => {
+      const wasHidden = sheetVisibilityMap.get(sheet.getName());
+      if (!wasHidden && sheet.isSheetHidden()) {
+        sheet.showSheet();
+      }
+    });
+  }
 }
 
 /**

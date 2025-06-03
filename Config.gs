@@ -7,7 +7,8 @@ const CONFIG = {
   SHEETS: {
     INPUT: '入力',
     TEMPLATE: 'テンプレート',
-    HISTORY: '送信履歴'
+    HISTORY: '送信履歴',
+    COMPANY_HISTORY: '宛名履歴'
   },
   
   // 入力シートのセル位置
@@ -72,5 +73,12 @@ const CONFIG = {
     'ファイル名',
     'ファイルURL',
     'メール送信'
+  ],
+  
+  // 宛名履歴シートのヘッダー
+  COMPANY_HISTORY_HEADERS: [
+    '会社名',
+    '最終使用日時',
+    '使用回数'
   ]
 };
