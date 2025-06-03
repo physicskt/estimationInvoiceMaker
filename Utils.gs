@@ -4,6 +4,16 @@
  */
 
 /**
+ * 商品明細の範囲を動的に取得
+ * @return {string} 範囲の文字列表現（例: 'A10:D29'）
+ */
+function getItemsRangeString() {
+  const startRow = CONFIG.ITEMS_CONFIG.START_ROW;
+  const endRow = startRow + CONFIG.ITEMS_CONFIG.MAX_ROWS - 1;
+  return `A${startRow}:D${endRow}`;
+}
+
+/**
  * フォルダを取得または作成
  * @param {GoogleAppsScript.Drive.Folder} parentFolder 親フォルダ
  * @param {string} folderName フォルダ名
@@ -198,41 +208,42 @@ function setupInputSheetLayout(sheet) {
   
   const itemHeaders = ['品目', '数量', '単価', '小計'];
   itemHeaders.forEach((header, index) => {
-    sheet.getRange(10, index + 1).setValue(header);
-    sheet.getRange(10, index + 1).setFontWeight('bold').setBackground('#f0f0f0');
+    sheet.getRange(CONFIG.ITEMS_CONFIG.START_ROW, index + 1).setValue(header);
+    sheet.getRange(CONFIG.ITEMS_CONFIG.START_ROW, index + 1).setFontWeight('bold').setBackground('#f0f0f0');
   });
   
-  // 明細エリアに罫線
-  sheet.getRange('A10:D14').setBorder(true, true, true, true, true, true);
+  // 明細エリアに罫線 - 動的に範囲を計算
+  const itemsEndRow = CONFIG.ITEMS_CONFIG.START_ROW + CONFIG.ITEMS_CONFIG.MAX_ROWS - 1;
+  sheet.getRange(`A${CONFIG.ITEMS_CONFIG.START_ROW}:D${itemsEndRow}`).setBorder(true, true, true, true, true, true);
   
   // 合計欄
-  sheet.getRange('E15').setValue('小計');
-  sheet.getRange('E16').setValue('消費税');
-  sheet.getRange('E17').setValue('合計');
+  sheet.getRange('C30').setValue('小計');
+  sheet.getRange('C31').setValue('消費税');
+  sheet.getRange('C32').setValue('合計');
   
-  sheet.getRange('C15:C17').setFontWeight('bold').setBackground('#f0f0f0');
-  sheet.getRange('C15:D17').setBorder(true, true, true, true, false, false);
+  sheet.getRange('C30:C32').setFontWeight('bold').setBackground('#f0f0f0');
+  sheet.getRange('C30:D32').setBorder(true, true, true, true, false, false);
   
   // ボタン説明
-  sheet.getRange('A19').setValue('操作ボタン');
-  sheet.getRange('A19').setFontSize(14).setFontWeight('bold').setBackground('#ffcccc');
+  sheet.getRange('A34').setValue('操作ボタン');
+  sheet.getRange('A34').setFontSize(14).setFontWeight('bold').setBackground('#ffcccc');
   
   // ボタン配置エリア
-  sheet.getRange('A20').setValue('計算ボタン');
-  sheet.getRange('B20').setValue('calculateTotals関数を割り当て');
-  sheet.getRange('B20').setBackground('#e6ffe6');
+  sheet.getRange('A35').setValue('計算ボタン');
+  sheet.getRange('B35').setValue('calculateTotals関数を割り当て');
+  sheet.getRange('B35').setBackground('#e6ffe6');
   
-  sheet.getRange('A21').setValue('送信ボタン');
-  sheet.getRange('B21').setValue('sendDocument関数を割り当て');
-  sheet.getRange('B21').setBackground('#ffe6e6');
+  sheet.getRange('A36').setValue('送信ボタン');
+  sheet.getRange('B36').setValue('sendDocument関数を割り当て');
+  sheet.getRange('B36').setBackground('#ffe6e6');
   
-  sheet.getRange('A22').setValue('クリアボタン');
-  sheet.getRange('B22').setValue('clearInputData関数を割り当て');
-  sheet.getRange('B22').setBackground('#e6e6ff');
+  sheet.getRange('A37').setValue('クリアボタン');
+  sheet.getRange('B37').setValue('clearInputData関数を割り当て');
+  sheet.getRange('B37').setBackground('#e6e6ff');
   
-  sheet.getRange('A23').setValue('宛名履歴ボタン');
-  sheet.getRange('B23').setValue('showCompanyHistory関数を割り当て');
-  sheet.getRange('B23').setBackground('#fff2e6');
+  sheet.getRange('A38').setValue('宛名履歴ボタン');
+  sheet.getRange('B38').setValue('showCompanyHistory関数を割り当て');
+  sheet.getRange('B38').setBackground('#fff2e6');
   
   // 列幅の調整
   sheet.setColumnWidth(1, 120); // A列
@@ -296,26 +307,28 @@ function setupTemplateSheetLayout(sheet) {
   
   // 明細ヘッダー
   const itemHeaders = ['品目', '数量', '単価', '小計'];
+  const headerRow = CONFIG.ITEMS_CONFIG.START_ROW - 1; // ヘッダーは明細開始行の1行上
   itemHeaders.forEach((header, index) => {
-    sheet.getRange(9, index + 1).setValue(header);
-    sheet.getRange(9, index + 1).setFontWeight('bold').setBackground('#e6f3ff');
+    sheet.getRange(headerRow, index + 1).setValue(header);
+    sheet.getRange(headerRow, index + 1).setFontWeight('bold').setBackground('#e6f3ff');
   });
   
-  // 罫線を追加
-  const itemRange = sheet.getRange('A9:D14');
+  // 罫線を追加 - 動的に範囲を計算
+  const itemsEndRow = CONFIG.ITEMS_CONFIG.START_ROW + CONFIG.ITEMS_CONFIG.MAX_ROWS - 1;
+  const itemRange = sheet.getRange(`A${headerRow}:D${itemsEndRow}`);
   itemRange.setBorder(true, true, true, true, true, true);
   
   // 合計欄
-  sheet.getRange('C15').setValue('小計');
-  sheet.getRange('C16').setValue('消費税');
-  sheet.getRange('C17').setValue('合計');
+  sheet.getRange('C30').setValue('小計');
+  sheet.getRange('C31').setValue('消費税');
+  sheet.getRange('C32').setValue('合計');
   
-  sheet.getRange('C15:D17').setFontWeight('bold');
-  sheet.getRange('D15:D17').setBorder(true, true, true, true, false, false);
+  sheet.getRange('C30:D32').setFontWeight('bold');
+  sheet.getRange('D30:D32').setBorder(true, true, true, true, false, false);
   
   // 備考欄
-  sheet.getRange('A19').setValue('備考：');
-  sheet.getRange('A19').setFontWeight('bold');
+  sheet.getRange('A34').setValue('備考：');
+  sheet.getRange('A34').setFontWeight('bold');
 }
 
 /**
@@ -324,8 +337,16 @@ function setupTemplateSheetLayout(sheet) {
  */
 function initialSetup() {
   try {
-    createInputSheet();
-    createTemplateSheet();
+    const inputSheet = createInputSheet();
+    const templateSheet = createTemplateSheet();
+    
+    // デフォルトの表示行数を設定
+    if (inputSheet) {
+      adjustItemRowsVisibility(inputSheet, CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS);
+    }
+    if (templateSheet) {
+      adjustItemRowsVisibility(templateSheet, CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS);
+    }
     
     SpreadsheetApp.getUi().alert('初期セットアップが完了しました。\n\n入力シートとテンプレートシートが作成されました。\n送信ボタンを配置して、sendDocument関数を割り当ててください。');
     
@@ -370,7 +391,7 @@ function calculateTotals() {
     }
     
     // 明細の小計を計算
-    const itemsRange = inputSheet.getRange(CONFIG.RANGES.ITEMS);
+    const itemsRange = inputSheet.getRange(getItemsRangeString());
     const values = itemsRange.getValues();
     
     let subtotal = 0;
@@ -382,7 +403,7 @@ function calculateTotals() {
         const itemSubtotal = quantity * unitPrice;
         
         // 小計をセルに設定
-        inputSheet.getRange(10 + i, 4).setValue(itemSubtotal);
+        inputSheet.getRange(CONFIG.ITEMS_CONFIG.START_ROW + i, 4).setValue(itemSubtotal);
         subtotal += itemSubtotal;
       }
     }
@@ -440,7 +461,7 @@ function clearInputData() {
     inputSheet.getRange(CONFIG.CELLS.REMARKS).clearContent();
     
     // 明細をクリア
-    inputSheet.getRange(CONFIG.RANGES.ITEMS).clearContent();
+    inputSheet.getRange(getItemsRangeString()).clearContent();
     
     // 合計金額をクリア
     inputSheet.getRange(CONFIG.CELLS.TOTAL_AMOUNT).clearContent();
@@ -605,5 +626,124 @@ function checkSystemStatus() {
   } catch (error) {
     console.error('システム確認エラー:', error);
     SpreadsheetApp.getUi().alert('エラー', `システム確認中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * 商品明細の表示行数を動的に調整
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet 対象シート
+ * @param {number} visibleRows 表示する行数（1-20）
+ */
+function adjustItemRowsVisibility(sheet, visibleRows = CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS) {
+  const maxRows = CONFIG.ITEMS_CONFIG.MAX_ROWS;
+  const startRow = CONFIG.ITEMS_CONFIG.START_ROW;
+  
+  // 入力値の検証
+  if (visibleRows < 1) visibleRows = 1;
+  if (visibleRows > maxRows) visibleRows = maxRows;
+  
+  // 全ての明細行の背景色をリセット
+  const allRowsRange = sheet.getRange(startRow, 1, maxRows, 4);
+  allRowsRange.setBackground('#ffffff');
+  
+  // 使用する行数に応じて背景色を設定
+  if (visibleRows > 0) {
+    const visibleRange = sheet.getRange(startRow, 1, visibleRows, 4);
+    visibleRange.setBackground('#f9f9f9'); // 薄いグレー
+  }
+  
+  // 使用しない行の背景色を薄く設定
+  if (visibleRows < maxRows) {
+    const hiddenRange = sheet.getRange(startRow + visibleRows, 1, maxRows - visibleRows, 4);
+    hiddenRange.setBackground('#f5f5f5'); // より薄いグレー
+  }
+}
+
+/**
+ * 商品明細行数を設定するメニュー関数
+ */
+function setItemRowCount() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.prompt(
+      '明細行数設定',
+      `現在の最大行数: ${CONFIG.ITEMS_CONFIG.MAX_ROWS}行\n\n表示する明細行数を入力してください（1-${CONFIG.ITEMS_CONFIG.MAX_ROWS}）：`,
+      ui.ButtonSet.OK_CANCEL
+    );
+    
+    if (response.getSelectedButton() === ui.Button.OK) {
+      const input = response.getResponseText().trim();
+      const rowCount = parseInt(input);
+      
+      if (isNaN(rowCount) || rowCount < 1 || rowCount > CONFIG.ITEMS_CONFIG.MAX_ROWS) {
+        ui.alert('エラー', `1から${CONFIG.ITEMS_CONFIG.MAX_ROWS}までの数値を入力してください。`, ui.ButtonSet.OK);
+        return;
+      }
+      
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+      const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
+      
+      if (inputSheet) {
+        adjustItemRowsVisibility(inputSheet, rowCount);
+      }
+      
+      if (templateSheet) {
+        adjustItemRowsVisibility(templateSheet, rowCount);
+      }
+      
+      ui.alert('設定完了', `明細行数を${rowCount}行に設定しました。`, ui.ButtonSet.OK);
+    }
+    
+  } catch (error) {
+    console.error('明細行数設定エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `明細行数設定中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * テスト機能：設定の妥当性をチェック
+ */
+function testConfiguration() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    let testResults = [];
+    
+    // 設定値の確認
+    testResults.push(`✅ 商品明細最大行数: ${CONFIG.ITEMS_CONFIG.MAX_ROWS}`);
+    testResults.push(`✅ 商品明細開始行: ${CONFIG.ITEMS_CONFIG.START_ROW}`);
+    testResults.push(`✅ デフォルト表示行数: ${CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS}`);
+    
+    // 計算された範囲の確認
+    const calculatedRange = getItemsRangeString();
+    testResults.push(`✅ 動的計算範囲: ${calculatedRange}`);
+    
+    // セル位置の確認
+    testResults.push(`✅ 小計セル: ${CONFIG.CELLS.TOTAL_AMOUNT}`);
+    testResults.push(`✅ 消費税セル: ${CONFIG.CELLS.TAX}`);
+    testResults.push(`✅ 合計セル: ${CONFIG.CELLS.GRAND_TOTAL}`);
+    
+    // テンプレートセル位置の確認
+    testResults.push(`✅ テンプレート小計: ${CONFIG.TEMPLATE_CELLS.TOTAL_AMOUNT}`);
+    testResults.push(`✅ テンプレート消費税: ${CONFIG.TEMPLATE_CELLS.TAX}`);
+    testResults.push(`✅ テンプレート合計: ${CONFIG.TEMPLATE_CELLS.GRAND_TOTAL}`);
+    testResults.push(`✅ テンプレート備考: ${CONFIG.TEMPLATE_CELLS.REMARKS}`);
+    
+    // 範囲の妥当性チェック
+    const endRow = CONFIG.ITEMS_CONFIG.START_ROW + CONFIG.ITEMS_CONFIG.MAX_ROWS - 1;
+    const totalRow = parseInt(CONFIG.CELLS.TOTAL_AMOUNT.substring(1));
+    
+    if (totalRow > endRow) {
+      testResults.push(`✅ 合計行位置は適切です (${totalRow} > ${endRow})`);
+    } else {
+      testResults.push(`❌ 合計行位置が明細行と重複しています (${totalRow} <= ${endRow})`);
+    }
+    
+    const message = '🔧 設定テスト結果\n\n' + testResults.join('\n');
+    ui.alert('設定テスト', message, ui.ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('設定テストエラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `設定テスト中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }

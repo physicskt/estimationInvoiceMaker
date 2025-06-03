@@ -11,9 +11,11 @@ function onOpen() {
     .addItem('🧹 入力データクリア', 'clearInputData')
     .addSeparator()
     .addItem('📋 宛名履歴表示', 'showCompanyHistory')
+    .addItem('📝 明細行数設定', 'setItemRowCount')
     .addSeparator()
     .addItem('⚙️ システム状態確認', 'checkSystemStatus')
     .addItem('🔧 初期セットアップ', 'initialSetup')
+    .addItem('🧪 設定テスト', 'testConfiguration')
     .addToUi();
 }
 
@@ -120,7 +122,7 @@ function getInputData(spreadsheet) {
  * 商品明細データを取得
  */
 function getItemsData(inputSheet) {
-  const itemsRange = inputSheet.getRange(CONFIG.RANGES.ITEMS);
+  const itemsRange = inputSheet.getRange(getItemsRangeString());
   const values = itemsRange.getValues();
   
   const items = [];
