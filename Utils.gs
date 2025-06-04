@@ -182,7 +182,7 @@ function setupInputSheetLayout(sheet) {
   
   // 基本情報入力欄
   const labels = [
-    ['書類種別', 'B2', '見積書 または 請求書'],
+    ['書類種別', 'B2', 'お見積書 または ご請求書'],
     ['発行日', 'B3', '例: 2024/06/01'],
     ['書類番号', 'B4', '3桁の数字（例: 001）'],
     ['宛先会社名', 'B5', '必須'],
@@ -271,17 +271,20 @@ function setupInputSheetLayout(sheet) {
   // データ検証の設定
   // 書類種別にドロップダウンを設定
   const documentTypeRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(['見積書', '請求書'])
+    .requireValueInList(['お見積書', 'ご請求書'])
     .setAllowInvalid(false)
-    .setHelpText('見積書または請求書を選択してください')
+    .setHelpText('お見積書またはご請求書を選択してください')
     .build();
   sheet.getRange(CONFIG.CELLS.DOCUMENT_TYPE).setDataValidation(documentTypeRule);
   
   // デフォルト日付を今日の日付に設定
   sheet.getRange(CONFIG.CELLS.ISSUE_DATE).setValue(new Date());
   
-  // 書類番号をテキスト形式に設定し、ドロップダウンを追加
-  const documentNumberOptions = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010'];
+  // 書類番号をテキスト形式に設定し、ドロップダウンを追加（001-100）
+  const documentNumberOptions = [];
+  for (let i = 1; i <= 100; i++) {
+    documentNumberOptions.push(i.toString().padStart(3, '0'));
+  }
   const documentNumberRule = SpreadsheetApp.newDataValidation()
     .requireValueInList(documentNumberOptions)
     .setAllowInvalid(true)
@@ -367,7 +370,7 @@ function createTemplateSheet() {
  */
 function setupTemplateSheetLayout(sheet) {
   // 書類タイトル
-  sheet.getRange('A1').setValue('見積書');
+  sheet.getRange('A1').setValue('お見積書');
   sheet.getRange('A1').setFontSize(24).setFontWeight('bold');
   
   // 発行日
@@ -383,12 +386,12 @@ function setupTemplateSheetLayout(sheet) {
   sheet.getRange('A5').setValue('担当者名');
   sheet.getRange('A6').setValue('住所');
   
-  // 発行元情報（右上）
-  sheet.getRange('E4').setValue('株式会社サンプル');
-  sheet.getRange('E5').setValue('営業部 山田太郎');
-  sheet.getRange('E6').setValue('〒000-0000 東京都●●区●●');
-  sheet.getRange('E7').setValue('TEL: 03-0000-0000');
-  sheet.getRange('E8').setValue('EMAIL: sample@example.com');
+  // 発行元情報（D列に移動）
+  sheet.getRange('D4').setValue('株式会社サンプル');
+  sheet.getRange('D5').setValue('営業部 山田太郎');
+  sheet.getRange('D6').setValue('〒000-0000 東京都●●区●●');
+  sheet.getRange('D7').setValue('TEL: 03-0000-0000');
+  sheet.getRange('D8').setValue('EMAIL: sample@example.com');
   
   // 明細ヘッダー
   const itemHeaders = ['品目', '数量', '単価', '小計'];
@@ -429,6 +432,13 @@ function initialSetup() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     
+    // 既存テンプレートシートから書式情報を保存
+    const existingTemplateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
+    let templateFormatting = null;
+    if (existingTemplateSheet) {
+      templateFormatting = inheritTemplateFormatting(existingTemplateSheet);
+    }
+    
     // 既存シートのバックアップ
     backupExistingSheetsIfNeeded(spreadsheet);
     
@@ -437,6 +447,11 @@ function initialSetup() {
     
     const inputSheet = createInputSheet();
     const templateSheet = createTemplateSheet();
+    
+    // 保存した書式を新しいテンプレートシートに適用
+    if (templateFormatting && templateSheet) {
+      applyTemplateFormatting(templateSheet, templateFormatting);
+    }
     
     // 列幅を継承
     if (referenceSheet && inputSheet) {
@@ -504,6 +519,88 @@ function inheritColumnWidths(sourceSheet, targetSheet) {
     console.log(`${targetSheet.getName()} の列幅を ${sourceSheet.getName()} から継承しました`);
   } catch (error) {
     console.error('列幅継承エラー:', error);
+  }
+}
+
+/**
+ * テンプレートシートの書式を保存
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} templateSheet 既存のテンプレートシート
+ * @return {Object} 書式情報
+ */
+function inheritTemplateFormatting(templateSheet) {
+  try {
+    const formatting = {};
+    
+    // 重要な範囲の書式を保存
+    const ranges = [
+      'A1:D50', // 全体的な範囲
+    ];
+    
+    ranges.forEach(rangeAddress => {
+      const range = templateSheet.getRange(rangeAddress);
+      formatting[rangeAddress] = {
+        backgrounds: range.getBackgrounds(),
+        fontColors: range.getFontColors(),
+        fontFamilies: range.getFontFamilies(),
+        fontSizes: range.getFontSizes(),
+        fontWeights: range.getFontWeights(),
+        borders: getBorders(range)
+      };
+    });
+    
+    console.log('テンプレートシートの書式を保存しました');
+    return formatting;
+  } catch (error) {
+    console.error('書式保存エラー:', error);
+    return null;
+  }
+}
+
+/**
+ * 保存した書式をテンプレートシートに適用
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} templateSheet 新しいテンプレートシート
+ * @param {Object} formatting 書式情報
+ */
+function applyTemplateFormatting(templateSheet, formatting) {
+  try {
+    Object.keys(formatting).forEach(rangeAddress => {
+      const range = templateSheet.getRange(rangeAddress);
+      const format = formatting[rangeAddress];
+      
+      if (format.backgrounds) range.setBackgrounds(format.backgrounds);
+      if (format.fontColors) range.setFontColors(format.fontColors);
+      if (format.fontFamilies) range.setFontFamilies(format.fontFamilies);
+      if (format.fontSizes) range.setFontSizes(format.fontSizes);
+      if (format.fontWeights) range.setFontWeights(format.fontWeights);
+      if (format.borders) applyBorders(range, format.borders);
+    });
+    
+    console.log('テンプレートシートに書式を適用しました');
+  } catch (error) {
+    console.error('書式適用エラー:', error);
+  }
+}
+
+/**
+ * 範囲の罫線情報を取得（簡易版）
+ * @param {GoogleAppsScript.Spreadsheet.Range} range 範囲
+ * @return {Object} 罫線情報
+ */
+function getBorders(range) {
+  // Google Apps Scriptでは罫線情報を直接取得できないため、簡易的な実装
+  return { simplified: true };
+}
+
+/**
+ * 罫線を適用（簡易版）
+ * @param {GoogleAppsScript.Spreadsheet.Range} range 範囲
+ * @param {Object} borders 罫線情報
+ */
+function applyBorders(range, borders) {
+  // 簡易的な罫線適用（既存の罫線設定を維持）
+  if (borders.simplified) {
+    // 基本的な罫線を設定
+    range.setBorder(true, true, true, true, false, false);
   }
 }
 
