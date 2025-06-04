@@ -23,7 +23,8 @@ const CONFIG = {
     REMARKS: 'B9',           // 備考
     TOTAL_AMOUNT: 'D30',     // 小計
     TAX: 'D31',              // 消費税
-    GRAND_TOTAL: 'D32'       // 合計金額
+    GRAND_TOTAL: 'D32',      // 合計金額
+    EXPORT_SHEETS_START: 'F2' // エクスポート対象シート選択開始セル
   },
   
   // 商品明細設定
@@ -35,7 +36,8 @@ const CONFIG = {
   
   // 入力シートの範囲
   RANGES: {
-    ITEMS: 'A10:D29'         // 商品明細（品目、数量、単価、小計）- 最大20行（動的に計算される）
+    ITEMS: 'A10:D29',        // 商品明細（品目、数量、単価、小計）- 最大20行（動的に計算される）
+    EXPORT_SHEETS: 'F2:G10'  // エクスポート対象シート選択範囲
   },
   
   // テンプレートシートのセル位置

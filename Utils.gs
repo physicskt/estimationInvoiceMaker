@@ -232,18 +232,31 @@ function setupInputSheetLayout(sheet) {
   sheet.getRange('A35').setValue('計算ボタン');
   sheet.getRange('B35').setValue('calculateTotals関数を割り当て');
   sheet.getRange('B35').setBackground('#e6ffe6');
-  
+
   sheet.getRange('A36').setValue('送信ボタン');
   sheet.getRange('B36').setValue('sendDocument関数を割り当て');
   sheet.getRange('B36').setBackground('#ffe6e6');
-  
+
   sheet.getRange('A37').setValue('クリアボタン');
   sheet.getRange('B37').setValue('clearInputData関数を割り当て');
   sheet.getRange('B37').setBackground('#e6e6ff');
-  
+
   sheet.getRange('A38').setValue('宛名履歴ボタン');
   sheet.getRange('B38').setValue('showCompanyHistory関数を割り当て');
   sheet.getRange('B38').setBackground('#fff2e6');
+
+  // エクスポート対象シート選択エリア
+  sheet.getRange('E1').setValue('PDFエクスポート対象シート');
+  sheet.getRange('E1').setFontSize(14).setFontWeight('bold').setBackground('#ffe6cc');
+  sheet.getRange('E1:G1').merge();
+
+  // エクスポート対象シート選択のヘッダー
+  sheet.getRange('F2').setValue('シート名');
+  sheet.getRange('G2').setValue('エクスポート');
+  sheet.getRange('F2:G2').setFontWeight('bold').setBackground('#f0f0f0');
+
+  // シート選択エリアを設定
+  setupSheetSelectionArea(sheet);
   
   // 列幅の調整
   sheet.setColumnWidth(1, 120); // A列
@@ -251,7 +264,8 @@ function setupInputSheetLayout(sheet) {
   sheet.setColumnWidth(3, 150); // C列
   sheet.setColumnWidth(4, 100); // D列
   sheet.setColumnWidth(5, 80);  // E列
-  sheet.setColumnWidth(6, 100); // F列
+  sheet.setColumnWidth(6, 150); // F列（シート名）
+  sheet.setColumnWidth(7, 100); // G列（エクスポート）
   
   // データ検証の設定
   // 書類種別にドロップダウンを設定
@@ -343,6 +357,8 @@ function initialSetup() {
     // デフォルトの表示行数を設定
     if (inputSheet) {
       adjustItemRowsVisibility(inputSheet, CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS);
+      // シート選択エリアを設定
+      setupSheetSelectionArea(inputSheet);
     }
     if (templateSheet) {
       adjustItemRowsVisibility(templateSheet, CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS);
@@ -467,6 +483,9 @@ function clearInputData() {
     inputSheet.getRange(CONFIG.CELLS.TOTAL_AMOUNT).clearContent();
     inputSheet.getRange(CONFIG.CELLS.TAX).clearContent();
     inputSheet.getRange(CONFIG.CELLS.GRAND_TOTAL).clearContent();
+    
+    // シート選択をリセット（テンプレートシートのみ選択状態に）
+    setupSheetSelectionArea(inputSheet);
     
     SpreadsheetApp.getUi().alert('入力データをクリアしました。');
     
@@ -745,5 +764,105 @@ function testConfiguration() {
   } catch (error) {
     console.error('設定テストエラー:', error);
     SpreadsheetApp.getUi().alert('エラー', `設定テスト中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * エクスポート対象シート選択エリアを設定
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet 入力シート
+ */
+function setupSheetSelectionArea(sheet) {
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const allSheets = spreadsheet.getSheets();
+  
+  // システムシート（入力、送信履歴、宛名履歴）は除外
+  const excludeSheets = [CONFIG.SHEETS.INPUT, CONFIG.SHEETS.HISTORY, CONFIG.SHEETS.COMPANY_HISTORY];
+  const exportableSheets = allSheets.filter(s => !excludeSheets.includes(s.getName()));
+  
+  // シート選択エリアをクリア
+  const clearRange = sheet.getRange('F3:G10');
+  clearRange.clearContent();
+  clearRange.clearDataValidations();
+  
+  if (exportableSheets.length === 0) {
+    // エクスポート可能なシートがない場合
+    sheet.getRange('F3').setValue('エクスポート可能なシートがありません');
+    sheet.getRange('F3').setFontColor('#ff0000');
+    return;
+  }
+  
+  // 各シートのチェックボックスを設定
+  exportableSheets.forEach((sheetObj, index) => {
+    if (index < 8) { // 最大8シートまで表示
+      const row = 3 + index;
+      
+      // シート名を表示
+      sheet.getRange(row, 6).setValue(sheetObj.getName());
+      
+      // チェックボックスを設定
+      const checkbox = SpreadsheetApp.newDataValidation()
+        .requireCheckbox()
+        .setAllowInvalid(false)
+        .build();
+      
+      sheet.getRange(row, 7).setDataValidation(checkbox);
+      
+      // テンプレートシートはデフォルトでチェック
+      if (sheetObj.getName() === CONFIG.SHEETS.TEMPLATE) {
+        sheet.getRange(row, 7).setValue(true);
+      } else {
+        sheet.getRange(row, 7).setValue(false);
+      }
+    }
+  });
+  
+  // 8シート以上ある場合の注意書き
+  if (exportableSheets.length > 8) {
+    sheet.getRange('F11').setValue(`注意: ${exportableSheets.length - 8}個のシートが表示されていません`);
+    sheet.getRange('F11').setFontColor('#ff8800');
+    sheet.getRange('F11').setFontSize(9);
+  }
+}
+
+/**
+ * エクスポート対象として選択されたシート名を取得
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} inputSheet 入力シート
+ * @return {Array<string>} 選択されたシート名の配列
+ */
+function getSelectedSheetsForExport(inputSheet) {
+  const selectedSheets = [];
+  
+  // エクスポート選択エリアをチェック
+  for (let row = 3; row <= 10; row++) {
+    const sheetName = inputSheet.getRange(row, 6).getValue();
+    const isSelected = inputSheet.getRange(row, 7).getValue();
+    
+    if (sheetName && isSelected === true) {
+      selectedSheets.push(sheetName);
+    }
+  }
+  
+  return selectedSheets;
+}
+
+/**
+ * シート選択エリアを更新するメニュー関数
+ */
+function refreshSheetSelection() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    
+    if (!inputSheet) {
+      SpreadsheetApp.getUi().alert('エラー', '入力シートが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
+    }
+    
+    setupSheetSelectionArea(inputSheet);
+    SpreadsheetApp.getUi().alert('更新完了', 'シート選択エリアを更新しました。', SpreadsheetApp.getUi().ButtonSet.OK);
+    
+  } catch (error) {
+    console.error('シート選択更新エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `シート選択更新中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
