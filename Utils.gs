@@ -185,7 +185,7 @@ function setupInputSheetLayout(sheet) {
     ['書類種別', 'B2', 'お見積書 または ご請求書'],
     ['発行日', 'B3', '例: 2024/06/01'],
     ['書類番号', 'B4', '3桁の数字（例: 001）'],
-    ['宛先会社名', 'B5', '必須'],
+    ['宛先会社名', 'B5', '必須（ドロップダウンから履歴選択可能）'],
     ['担当者名', 'B6', '任意'],
     ['住所', 'B7', '任意'],
     ['メールアドレス', 'B8', '必須'],
@@ -299,39 +299,49 @@ function setupInputSheetLayout(sheet) {
 
 /**
  * 宛先会社名のドロップダウンを設定
+ * 宛名履歴シートから過去に使用した会社名を取得してドロップダウンに設定
  * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet 入力シート
  */
 function setupCompanyNameDropdown(sheet) {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+    const companyHistorySheet = getOrCreateCompanyHistorySheet(spreadsheet);
     
     let companyNames = [];
     
-    if (companyHistorySheet) {
-      // 履歴から会社名を取得
-      const lastRow = companyHistorySheet.getLastRow();
-      if (lastRow > 1) {
-        const companyData = companyHistorySheet.getRange(2, 1, lastRow - 1, 1).getValues();
-        companyNames = companyData.map(row => row[0]).filter(name => name && name.toString().trim() !== '');
-      }
+    // 履歴から会社名を取得（最新順）
+    const lastRow = companyHistorySheet.getLastRow();
+    if (lastRow > 1) {
+      const companyData = companyHistorySheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      companyNames = companyData.map(row => row[0]).filter(name => name && name.toString().trim() !== '');
     }
     
-    // デフォルトの会社名を追加
+    // デフォルトの会社名を追加（履歴がない場合のみ）
     if (companyNames.length === 0) {
       companyNames = ['株式会社サンプル', '有限会社テスト', '個人事業主様'];
     }
     
-    // 重複を除去
+    // 重複を除去し、最新順を維持
     companyNames = [...new Set(companyNames)];
     
+    // 最大50件に制限（ドロップダウンの性能を考慮）
+    if (companyNames.length > 50) {
+      companyNames = companyNames.slice(0, 50);
+    }
+    
     // ドロップダウンを設定
+    const helpText = companyNames.length > 0 
+      ? `宛名履歴から選択または新しい会社名を入力してください（履歴: ${companyNames.length}件）`
+      : '宛先会社名を選択または入力してください';
+    
     const companyNameRule = SpreadsheetApp.newDataValidation()
       .requireValueInList(companyNames)
       .setAllowInvalid(true)
-      .setHelpText('宛先会社名を選択または入力してください')
+      .setHelpText(helpText)
       .build();
     sheet.getRange(CONFIG.CELLS.COMPANY_NAME).setDataValidation(companyNameRule);
+    
+    console.log(`会社名ドロップダウンを更新しました（${companyNames.length}件の履歴）`);
     
   } catch (error) {
     console.error('会社名ドロップダウン設定エラー:', error);
@@ -340,7 +350,7 @@ function setupCompanyNameDropdown(sheet) {
     const companyNameRule = SpreadsheetApp.newDataValidation()
       .requireValueInList(defaultCompanies)
       .setAllowInvalid(true)
-      .setHelpText('宛先会社名を選択または入力してください')
+      .setHelpText('宛先会社名を選択または入力してください（履歴読み込みエラー）')
       .build();
     sheet.getRange(CONFIG.CELLS.COMPANY_NAME).setDataValidation(companyNameRule);
   }
@@ -606,17 +616,34 @@ function applyBorders(range, borders) {
 
 /**
  * 入力シートのドロップダウンを更新
- * 会社履歴が更新された時に呼び出される
+ * 宛名履歴シートから最新の会社名リストを取得してドロップダウンを更新
  */
 function refreshInputSheetDropdowns() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
     
-    if (inputSheet) {
-      setupCompanyNameDropdown(inputSheet);
-      SpreadsheetApp.getUi().alert('ドロップダウン更新完了', '宛先会社名のドロップダウンが更新されました。', SpreadsheetApp.getUi().ButtonSet.OK);
+    if (!inputSheet) {
+      SpreadsheetApp.getUi().alert('エラー', '入力シートが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
+      return;
     }
+    
+    // 宛名履歴から会社名数を取得
+    const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+    let companyCount = 0;
+    if (companyHistorySheet && companyHistorySheet.getLastRow() > 1) {
+      companyCount = companyHistorySheet.getLastRow() - 1;
+    }
+    
+    // ドロップダウンを更新
+    setupCompanyNameDropdown(inputSheet);
+    
+    const message = companyCount > 0 
+      ? `宛先会社名のドロップダウンを更新しました。\n\n宛名履歴: ${companyCount}件の会社名が利用可能です。\n\nB5セルのドロップダウンから選択できます。`
+      : `宛先会社名のドロップダウンを更新しました。\n\n宛名履歴がまだありません。\n新しい会社名を入力すると、次回から履歴に表示されます。`;
+    
+    SpreadsheetApp.getUi().alert('ドロップダウン更新完了', message, SpreadsheetApp.getUi().ButtonSet.OK);
+    
   } catch (error) {
     console.error('ドロップダウン更新エラー:', error);
     SpreadsheetApp.getUi().alert('エラー', `ドロップダウンの更新中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);

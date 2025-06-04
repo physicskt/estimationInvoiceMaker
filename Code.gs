@@ -11,7 +11,7 @@ function onOpen() {
     .addItem('🧹 入力データクリア', 'clearInputData')
     .addSeparator()
     .addItem('📋 宛名履歴表示', 'showCompanyHistory')
-    .addItem('🔄 ドロップダウン更新', 'refreshInputSheetDropdowns')
+    .addItem('🔄 宛名ドロップダウン更新', 'refreshInputSheetDropdowns')
     .addItem('📝 明細行数設定', 'setItemRowCount')
     .addItem('📄 シート選択更新', 'refreshSheetSelection')
     .addSeparator()
@@ -81,6 +81,12 @@ function sendDocument() {
     
     // 宛名履歴を更新
     updateCompanyHistory(spreadsheet, inputData.companyName);
+    
+    // 入力シートの会社名ドロップダウンを更新（新しい会社名をすぐに利用可能にする）
+    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    if (inputSheet) {
+      setupCompanyNameDropdown(inputSheet);
+    }
     
     // バックアップを作成
     createBackupDocument(inputData, savedFile);
