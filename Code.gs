@@ -242,6 +242,9 @@ function generatePDF(spreadsheet, inputData) {
       }
     }
     
+    // スプレッドシートを保存して変更を確実に反映
+    SpreadsheetApp.flush();
+    
     // ステップ2: そのシートをPDF化する
     const pdfBlob = DriveApp.getFileById(tempSpreadsheet.getId()).getAs('application/pdf');
     
@@ -251,10 +254,17 @@ function generatePDF(spreadsheet, inputData) {
     
     return pdfBlob;
     
+  } catch (error) {
+    console.error('PDF生成エラー:', error);
+    throw new Error(`PDF生成中にエラーが発生しました: ${error.message}`);
   } finally {
     // ステップ3: 一時スプレッドシートを削除する
     if (tempSpreadsheet) {
-      DriveApp.getFileById(tempSpreadsheet.getId()).setTrashed(true);
+      try {
+        DriveApp.getFileById(tempSpreadsheet.getId()).setTrashed(true);
+      } catch (deleteError) {
+        console.warn('一時スプレッドシートの削除に失敗しました:', deleteError);
+      }
     }
   }
 }
@@ -270,31 +280,38 @@ function createTempSpreadsheetWithSelectedSheets(sourceSpreadsheet, inputData) {
   const tempName = `temp_pdf_${Date.now()}`;
   const tempSpreadsheet = SpreadsheetApp.create(tempName);
   
-  // デフォルトシートを削除
-  const defaultSheets = tempSpreadsheet.getSheets();
-  defaultSheets.forEach(sheet => {
-    if (sheet.getName() !== inputData.exportSheets[0]) { // 最初のシート以外削除
-      tempSpreadsheet.deleteSheet(sheet);
+  let copiedSheetsCount = 0;
+  
+  // 選択されたシートをコピー
+  inputData.exportSheets.forEach((sheetName) => {
+    const sourceSheet = sourceSpreadsheet.getSheetByName(sheetName);
+    if (sourceSheet) {
+      sourceSheet.copyTo(tempSpreadsheet);
+      const copiedSheet = tempSpreadsheet.getSheets()[tempSpreadsheet.getSheets().length - 1];
+      copiedSheet.setName(sheetName);
+      copiedSheetsCount++;
+    } else {
+      console.warn(`警告: シート「${sheetName}」が見つかりませんでした`);
     }
   });
   
-  // 選択されたシートをコピー
-  inputData.exportSheets.forEach((sheetName, index) => {
-    const sourceSheet = sourceSpreadsheet.getSheetByName(sheetName);
-    if (sourceSheet) {
-      if (index === 0) {
-        // 最初のシートは既存のデフォルトシートを置き換え
-        const firstSheet = tempSpreadsheet.getSheets()[0];
-        sourceSheet.copyTo(tempSpreadsheet);
-        const copiedSheet = tempSpreadsheet.getSheets()[tempSpreadsheet.getSheets().length - 1];
-        copiedSheet.setName(sheetName);
-        tempSpreadsheet.deleteSheet(firstSheet);
-      } else {
-        // 2番目以降のシートは追加
-        sourceSheet.copyTo(tempSpreadsheet);
-        const copiedSheet = tempSpreadsheet.getSheets()[tempSpreadsheet.getSheets().length - 1];
-        copiedSheet.setName(sheetName);
-      }
+  // コピーされたシートが1つもない場合はエラー
+  if (copiedSheetsCount === 0) {
+    tempSpreadsheet.deleteSheet(tempSpreadsheet.getSheets()[0]); // 空のスプレッドシートを削除
+    DriveApp.getFileById(tempSpreadsheet.getId()).setTrashed(true);
+    throw new Error('選択されたシートが存在しないか、コピーできませんでした');
+  }
+  
+  // デフォルトシート（Sheet1など）を削除
+  const defaultSheets = tempSpreadsheet.getSheets().filter(sheet => 
+    sheet.getName().startsWith('Sheet') || 
+    sheet.getName().startsWith('シート') ||
+    !inputData.exportSheets.includes(sheet.getName())
+  );
+  
+  defaultSheets.forEach(sheet => {
+    if (tempSpreadsheet.getSheets().length > 1) { // 最低1つのシートは残す
+      tempSpreadsheet.deleteSheet(sheet);
     }
   });
   

@@ -784,6 +784,13 @@ function setupSheetSelectionArea(sheet) {
   clearRange.clearContent();
   clearRange.clearDataValidations();
   
+  if (exportableSheets.length === 0) {
+    // エクスポート可能なシートがない場合
+    sheet.getRange('F3').setValue('エクスポート可能なシートがありません');
+    sheet.getRange('F3').setFontColor('#ff0000');
+    return;
+  }
+  
   // 各シートのチェックボックスを設定
   exportableSheets.forEach((sheetObj, index) => {
     if (index < 8) { // 最大8シートまで表示
@@ -808,6 +815,13 @@ function setupSheetSelectionArea(sheet) {
       }
     }
   });
+  
+  // 8シート以上ある場合の注意書き
+  if (exportableSheets.length > 8) {
+    sheet.getRange('F11').setValue(`注意: ${exportableSheets.length - 8}個のシートが表示されていません`);
+    sheet.getRange('F11').setFontColor('#ff8800');
+    sheet.getRange('F11').setFontSize(9);
+  }
 }
 
 /**
