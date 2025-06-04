@@ -11,6 +11,7 @@ function onOpen() {
     .addItem('🧹 入力データクリア', 'clearInputData')
     .addSeparator()
     .addItem('📋 宛名履歴表示', 'showCompanyHistory')
+    .addItem('🔄 ドロップダウン更新', 'refreshInputSheetDropdowns')
     .addItem('📝 明細行数設定', 'setItemRowCount')
     .addItem('📄 シート選択更新', 'refreshSheetSelection')
     .addSeparator()
@@ -164,9 +165,13 @@ function validateInputData(data) {
   if (!data.documentNumber) {
     errors.push('書類番号が入力されていません');
   } else {
-    const docNumStr = String(data.documentNumber);
-    if (!/^\d{3}$/.test(docNumStr)) {
-      errors.push('書類番号は3桁の数字で入力してください（例：001, 123）');
+    const docNumStr = String(data.documentNumber).trim();
+    if (docNumStr === '') {
+      errors.push('書類番号が入力されていません');
+    }
+    // 3桁の数字形式を推奨するが、他の形式も許可
+    if (!/^\d{1,10}$/.test(docNumStr) && !/^[A-Za-z0-9-_]{1,20}$/.test(docNumStr)) {
+      errors.push('書類番号は数字または英数字で入力してください（例：001, A123）');
     }
   }
   
@@ -325,10 +330,28 @@ function updateTemplateSheet(templateSheet, inputData) {
   // 基本情報を設定
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.DOCUMENT_TYPE).setValue(inputData.documentType);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.ISSUE_DATE).setValue(Utilities.formatDate(inputData.issueDate, 'Asia/Tokyo', 'yyyy年MM月dd日'));
+  templateSheet.getRange(CONFIG.TEMPLATE_CELLS.DOCUMENT_NUMBER).setValue(inputData.documentNumber);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.COMPANY_NAME).setValue(inputData.companyName);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.CONTACT_NAME).setValue(inputData.contactName);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.ADDRESS).setValue(inputData.address);
-  templateSheet.getRange(CONFIG.TEMPLATE_CELLS.REMARKS).setValue(inputData.remarks);
+  
+  // 備考を複数行に設定（33〜47行）
+  // まず備考エリアをクリア
+  const remarksStartRow = CONFIG.TEMPLATE_RANGES.REMARKS_START_ROW + 1; // ヘッダーの次の行から
+  const remarksEndRow = CONFIG.TEMPLATE_RANGES.REMARKS_END_ROW;
+  const remarksClearRange = templateSheet.getRange(remarksStartRow, 1, remarksEndRow - remarksStartRow + 1, 6);
+  remarksClearRange.clear();
+  
+  // 備考を設定
+  if (inputData.remarks) {
+    const remarksLines = inputData.remarks.split('\n');
+    const maxLines = remarksEndRow - remarksStartRow + 1;
+    for (let i = 0; i < Math.min(remarksLines.length, maxLines); i++) {
+      if (remarksLines[i].trim() !== '') {
+        templateSheet.getRange(remarksStartRow + i, 1).setValue(remarksLines[i]);
+      }
+    }
+  }
   
   // 商品明細を設定
   updateItemsInTemplate(templateSheet, inputData.items);

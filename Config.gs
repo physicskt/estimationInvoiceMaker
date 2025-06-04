@@ -44,10 +44,11 @@ const CONFIG = {
   TEMPLATE_CELLS: {
     DOCUMENT_TYPE: 'A1',     // 書類種別
     ISSUE_DATE: 'D2',        // 発行日
+    DOCUMENT_NUMBER: 'D3',   // 書類番号
     COMPANY_NAME: 'A4',      // 宛先会社名
     CONTACT_NAME: 'A5',      // 担当者名
     ADDRESS: 'A6',           // 住所
-    REMARKS: 'A34',          // 備考
+    REMARKS: 'A33',          // 備考
     TOTAL_AMOUNT: 'D30',     // 小計
     TAX: 'D31',              // 消費税
     GRAND_TOTAL: 'D32'       // 合計金額
@@ -56,7 +57,9 @@ const CONFIG = {
   // テンプレートシートの範囲
   TEMPLATE_RANGES: {
     ITEMS_START_ROW: 10,     // 商品明細開始行
-    ITEMS_MAX_ROWS: 20       // 商品明細最大行数（ITEMS_CONFIG.MAX_ROWSと同期）
+    ITEMS_MAX_ROWS: 20,      // 商品明細最大行数（ITEMS_CONFIG.MAX_ROWSと同期）
+    REMARKS_START_ROW: 33,   // 備考開始行
+    REMARKS_END_ROW: 47      // 備考終了行
   },
   
   // フォルダ名

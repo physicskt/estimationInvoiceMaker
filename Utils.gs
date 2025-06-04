@@ -160,6 +160,7 @@ function createInputSheet() {
   let inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
   
   if (!inputSheet) {
+    // 新しいシートを作成
     inputSheet = spreadsheet.insertSheet(CONFIG.SHEETS.INPUT);
     
     // 入力フォームのレイアウトを作成
@@ -275,6 +276,71 @@ function setupInputSheetLayout(sheet) {
     .setHelpText('見積書または請求書を選択してください')
     .build();
   sheet.getRange(CONFIG.CELLS.DOCUMENT_TYPE).setDataValidation(documentTypeRule);
+  
+  // デフォルト日付を今日の日付に設定
+  sheet.getRange(CONFIG.CELLS.ISSUE_DATE).setValue(new Date());
+  
+  // 書類番号をテキスト形式に設定し、ドロップダウンを追加
+  const documentNumberOptions = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010'];
+  const documentNumberRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(documentNumberOptions)
+    .setAllowInvalid(true)
+    .setHelpText('書類番号を選択または入力してください')
+    .build();
+  sheet.getRange(CONFIG.CELLS.DOCUMENT_NUMBER).setDataValidation(documentNumberRule);
+  sheet.getRange(CONFIG.CELLS.DOCUMENT_NUMBER).setNumberFormat('@'); // テキスト形式
+  
+  // 宛先会社名のドロップダウンを設定（履歴から）
+  setupCompanyNameDropdown(sheet);
+}
+
+/**
+ * 宛先会社名のドロップダウンを設定
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet 入力シート
+ */
+function setupCompanyNameDropdown(sheet) {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+    
+    let companyNames = [];
+    
+    if (companyHistorySheet) {
+      // 履歴から会社名を取得
+      const lastRow = companyHistorySheet.getLastRow();
+      if (lastRow > 1) {
+        const companyData = companyHistorySheet.getRange(2, 1, lastRow - 1, 1).getValues();
+        companyNames = companyData.map(row => row[0]).filter(name => name && name.toString().trim() !== '');
+      }
+    }
+    
+    // デフォルトの会社名を追加
+    if (companyNames.length === 0) {
+      companyNames = ['株式会社サンプル', '有限会社テスト', '個人事業主様'];
+    }
+    
+    // 重複を除去
+    companyNames = [...new Set(companyNames)];
+    
+    // ドロップダウンを設定
+    const companyNameRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(companyNames)
+      .setAllowInvalid(true)
+      .setHelpText('宛先会社名を選択または入力してください')
+      .build();
+    sheet.getRange(CONFIG.CELLS.COMPANY_NAME).setDataValidation(companyNameRule);
+    
+  } catch (error) {
+    console.error('会社名ドロップダウン設定エラー:', error);
+    // エラーが発生した場合は基本的なドロップダウンを設定
+    const defaultCompanies = ['株式会社サンプル', '有限会社テスト', '個人事業主様'];
+    const companyNameRule = SpreadsheetApp.newDataValidation()
+      .requireValueInList(defaultCompanies)
+      .setAllowInvalid(true)
+      .setHelpText('宛先会社名を選択または入力してください')
+      .build();
+    sheet.getRange(CONFIG.CELLS.COMPANY_NAME).setDataValidation(companyNameRule);
+  }
 }
 
 /**
@@ -285,6 +351,7 @@ function createTemplateSheet() {
   let templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
   
   if (!templateSheet) {
+    // 新しいシートを作成
     templateSheet = spreadsheet.insertSheet(CONFIG.SHEETS.TEMPLATE);
     
     // テンプレートのレイアウトを作成
@@ -306,6 +373,10 @@ function setupTemplateSheetLayout(sheet) {
   // 発行日
   sheet.getRange('D2').setValue('発行日：');
   sheet.getRange('D2').setFontWeight('bold');
+  
+  // 書類番号
+  sheet.getRange('D3').setValue('書類番号：');
+  sheet.getRange('D3').setFontWeight('bold');
   
   // 宛先情報
   sheet.getRange('A4').setValue('宛先会社名');
@@ -341,18 +412,39 @@ function setupTemplateSheetLayout(sheet) {
   sheet.getRange('D30:D32').setBorder(true, true, true, true, false, false);
   
   // 備考欄
-  sheet.getRange('A34').setValue('備考：');
-  sheet.getRange('A34').setFontWeight('bold');
+  sheet.getRange('A33').setValue('備考：');
+  sheet.getRange('A33').setFontWeight('bold');
+  
+  // 備考エリアの範囲設定（33〜47行）
+  const remarksRange = sheet.getRange(`A${CONFIG.TEMPLATE_RANGES.REMARKS_START_ROW}:F${CONFIG.TEMPLATE_RANGES.REMARKS_END_ROW}`);
+  remarksRange.setBorder(true, true, true, true, false, false);
 }
 
 /**
  * 初期セットアップを実行
  * 新しいスプレッドシートにシートを作成する
+ * 既存シートがある場合はバックアップしてから新しいシートを作成する
  */
 function initialSetup() {
   try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    
+    // 既存シートのバックアップ
+    backupExistingSheetsIfNeeded(spreadsheet);
+    
+    // 列の大きさを継承するための参照シート（シート1）を取得
+    const referenceSheet = spreadsheet.getSheets()[0]; // 最初のシート
+    
     const inputSheet = createInputSheet();
     const templateSheet = createTemplateSheet();
+    
+    // 列幅を継承
+    if (referenceSheet && inputSheet) {
+      inheritColumnWidths(referenceSheet, inputSheet);
+    }
+    if (referenceSheet && templateSheet) {
+      inheritColumnWidths(referenceSheet, templateSheet);
+    }
     
     // デフォルトの表示行数を設定
     if (inputSheet) {
@@ -364,11 +456,73 @@ function initialSetup() {
       adjustItemRowsVisibility(templateSheet, CONFIG.ITEMS_CONFIG.DEFAULT_VISIBLE_ROWS);
     }
     
-    SpreadsheetApp.getUi().alert('初期セットアップが完了しました。\n\n入力シートとテンプレートシートが作成されました。\n送信ボタンを配置して、sendDocument関数を割り当ててください。');
+    SpreadsheetApp.getUi().alert('初期セットアップが完了しました。\n\n入力シートとテンプレートシートが作成されました。\n既存シートはバックアップされました。\n送信ボタンを配置して、sendDocument関数を割り当ててください。');
     
   } catch (error) {
     console.error('初期セットアップエラー:', error);
     SpreadsheetApp.getUi().alert(`初期セットアップでエラーが発生しました: ${error.message}`);
+  }
+}
+
+/**
+ * 既存シートのバックアップ
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
+ */
+function backupExistingSheetsIfNeeded(spreadsheet) {
+  const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+  const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
+  
+  if (inputSheet || templateSheet) {
+    const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd_HHmmss');
+    
+    if (inputSheet) {
+      const newName = `${CONFIG.SHEETS.INPUT}_backup_${timestamp}`;
+      inputSheet.setName(newName);
+      console.log(`入力シートを ${newName} にバックアップしました`);
+    }
+    
+    if (templateSheet) {
+      const newName = `${CONFIG.SHEETS.TEMPLATE}_backup_${timestamp}`;
+      templateSheet.setName(newName);
+      console.log(`テンプレートシートを ${newName} にバックアップしました`);
+    }
+  }
+}
+
+/**
+ * 列幅を継承
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sourceSheet 参照元シート
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} targetSheet 適用先シート
+ */
+function inheritColumnWidths(sourceSheet, targetSheet) {
+  try {
+    // 最初の10列の幅を継承
+    for (let col = 1; col <= 10; col++) {
+      const width = sourceSheet.getColumnWidth(col);
+      targetSheet.setColumnWidth(col, width);
+    }
+    console.log(`${targetSheet.getName()} の列幅を ${sourceSheet.getName()} から継承しました`);
+  } catch (error) {
+    console.error('列幅継承エラー:', error);
+  }
+}
+
+/**
+ * 入力シートのドロップダウンを更新
+ * 会社履歴が更新された時に呼び出される
+ */
+function refreshInputSheetDropdowns() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    
+    if (inputSheet) {
+      setupCompanyNameDropdown(inputSheet);
+      SpreadsheetApp.getUi().alert('ドロップダウン更新完了', '宛先会社名のドロップダウンが更新されました。', SpreadsheetApp.getUi().ButtonSet.OK);
+    }
+  } catch (error) {
+    console.error('ドロップダウン更新エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `ドロップダウンの更新中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
 
