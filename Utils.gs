@@ -281,7 +281,10 @@ function setupInputSheetLayout(sheet) {
   sheet.getRange(CONFIG.CELLS.ISSUE_DATE).setValue(new Date());
   
   // 書類番号をテキスト形式に設定し、ドロップダウンを追加
-  const documentNumberOptions = ['001', '002', '003', '004', '005', '006', '007', '008', '009', '010'];
+  const documentNumberOptions = [];
+  for (let i = 1; i <= 100; i++) {
+    documentNumberOptions.push(String(i).padStart(3, '0'));
+  }
   const documentNumberRule = SpreadsheetApp.newDataValidation()
     .requireValueInList(documentNumberOptions)
     .setAllowInvalid(true)
@@ -432,7 +435,7 @@ function initialSetup() {
     // 既存シートのバックアップ
     backupExistingSheetsIfNeeded(spreadsheet);
     
-    // 列の大きさを継承するための参照シート（シート1）を取得
+    // 列の大きさを継承するための参照シート（元のシート）を取得
     const referenceSheet = spreadsheet.getSheets()[0]; // 最初のシート
     
     const inputSheet = createInputSheet();
