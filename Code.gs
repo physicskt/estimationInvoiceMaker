@@ -11,7 +11,7 @@ function onOpen() {
     .addItem('🧹 入力データクリア', 'clearInputData')
     .addSeparator()
     .addItem('📋 宛名履歴表示', 'showCompanyHistory')
-    .addItem('🔄 ドロップダウン更新', 'refreshInputSheetDropdowns')
+    .addItem('🔄 宛名ドロップダウン更新', 'refreshInputSheetDropdowns')
     .addItem('📝 明細行数設定', 'setItemRowCount')
     .addItem('📄 シート選択更新', 'refreshSheetSelection')
     .addSeparator()
@@ -19,6 +19,9 @@ function onOpen() {
     .addItem('🔧 初期セットアップ', 'initialSetup')
     .addItem('🧪 設定テスト', 'testConfiguration')
     .addToUi();
+  
+  // 発行日を今日の日付に自動更新
+  updateIssueDateOnOpen();
 }
 
 /**
@@ -78,6 +81,12 @@ function sendDocument() {
     
     // 宛名履歴を更新
     updateCompanyHistory(spreadsheet, inputData.companyName);
+    
+    // 入力シートの会社名ドロップダウンを更新（新しい会社名をすぐに利用可能にする）
+    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    if (inputSheet) {
+      setupCompanyNameDropdown(inputSheet);
+    }
     
     // バックアップを作成
     createBackupDocument(inputData, savedFile);
@@ -153,8 +162,8 @@ function validateInputData(data) {
   // 必須項目のチェック
   if (!data.documentType) {
     errors.push('書類種別が入力されていません');
-  } else if (data.documentType !== '見積書' && data.documentType !== '請求書') {
-    errors.push('書類種別は「見積書」または「請求書」を入力してください');
+  } else if (data.documentType !== 'お見積書' && data.documentType !== 'ご請求書') {
+    errors.push('書類種別は「お見積書」または「ご請求書」を入力してください');
   }
   
   if (!data.companyName) {
@@ -400,7 +409,7 @@ function savePDFToFolder(pdfBlob, inputData) {
   const parentFolder = DriveApp.getFileById(SpreadsheetApp.getActiveSpreadsheet().getId()).getParents().next();
   
   // 書類種別に応じてフォルダを取得または作成
-  const folderName = inputData.documentType === '見積書' ? CONFIG.FOLDERS.ESTIMATES : CONFIG.FOLDERS.INVOICES;
+  const folderName = inputData.documentType === 'お見積書' ? CONFIG.FOLDERS.ESTIMATES : CONFIG.FOLDERS.INVOICES;
   const targetFolder = getOrCreateFolder(parentFolder, folderName);
   
   // PDFを保存
@@ -481,4 +490,21 @@ function createBackupDocument(inputData, savedFile) {
   const docFile = DriveApp.getFileById(doc.getId());
   backupFolder.addFile(docFile);
   DriveApp.getRootFolder().removeFile(docFile);
+}
+
+/**
+ * ファイルを開いた時に発行日を今日の日付に自動更新
+ */
+function updateIssueDateOnOpen() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    
+    if (inputSheet) {
+      // 発行日を今日の日付に設定
+      inputSheet.getRange(CONFIG.CELLS.ISSUE_DATE).setValue(new Date());
+    }
+  } catch (error) {
+    console.error('発行日自動更新エラー:', error);
+  }
 }
