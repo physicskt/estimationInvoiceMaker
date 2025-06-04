@@ -325,10 +325,19 @@ function updateTemplateSheet(templateSheet, inputData) {
   // 基本情報を設定
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.DOCUMENT_TYPE).setValue(inputData.documentType);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.ISSUE_DATE).setValue(Utilities.formatDate(inputData.issueDate, 'Asia/Tokyo', 'yyyy年MM月dd日'));
+  templateSheet.getRange(CONFIG.TEMPLATE_CELLS.DOCUMENT_NUMBER).setValue(inputData.documentNumber);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.COMPANY_NAME).setValue(inputData.companyName);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.CONTACT_NAME).setValue(inputData.contactName);
   templateSheet.getRange(CONFIG.TEMPLATE_CELLS.ADDRESS).setValue(inputData.address);
-  templateSheet.getRange(CONFIG.TEMPLATE_CELLS.REMARKS).setValue(inputData.remarks);
+  
+  // 備考を複数行に設定（33〜47行）
+  if (inputData.remarks) {
+    const remarksLines = inputData.remarks.split('\n');
+    const maxLines = CONFIG.TEMPLATE_RANGES.REMARKS_END_ROW - CONFIG.TEMPLATE_RANGES.REMARKS_START_ROW;
+    for (let i = 0; i < Math.min(remarksLines.length, maxLines); i++) {
+      templateSheet.getRange(CONFIG.TEMPLATE_RANGES.REMARKS_START_ROW + i + 1, 1).setValue(remarksLines[i]);
+    }
+  }
   
   // 商品明細を設定
   updateItemsInTemplate(templateSheet, inputData.items);
