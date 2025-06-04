@@ -508,6 +508,25 @@ function inheritColumnWidths(sourceSheet, targetSheet) {
 }
 
 /**
+ * 入力シートのドロップダウンを更新
+ * 会社履歴が更新された時に呼び出される
+ */
+function refreshInputSheetDropdowns() {
+  try {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    
+    if (inputSheet) {
+      setupCompanyNameDropdown(inputSheet);
+      SpreadsheetApp.getUi().alert('ドロップダウン更新完了', '宛先会社名のドロップダウンが更新されました。', SpreadsheetApp.getUi().ButtonSet.OK);
+    }
+  } catch (error) {
+    console.error('ドロップダウン更新エラー:', error);
+    SpreadsheetApp.getUi().alert('エラー', `ドロップダウンの更新中にエラーが発生しました: ${error.message}`, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
  * 数値フォーマット関数
  * @param {number} value 数値
  * @return {string} フォーマットされた文字列
