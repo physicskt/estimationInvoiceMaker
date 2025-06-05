@@ -565,7 +565,7 @@ function inheritTemplateFormatting(templateSheet) {
     
     // 重要な範囲の書式を保存
     const ranges = [
-      'A1:D50', // 全体的な範囲
+      'A1:F50', // テンプレート全体の範囲（A-D: 基本レイアウト、E-F: 合計・備考エリア）
     ];
     
     ranges.forEach(rangeAddress => {
@@ -595,6 +595,11 @@ function inheritTemplateFormatting(templateSheet) {
  */
 function applyTemplateFormatting(templateSheet, formatting) {
   try {
+    // まず、余計な書式をクリア（G列以降の不要な書式を除去）
+    const clearRange = templateSheet.getRange('G1:Z50');
+    clearRange.clearFormat();
+    
+    // 保存された書式を適用
     Object.keys(formatting).forEach(rangeAddress => {
       const range = templateSheet.getRange(rangeAddress);
       const format = formatting[rangeAddress];
