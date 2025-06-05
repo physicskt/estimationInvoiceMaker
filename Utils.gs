@@ -4,6 +4,20 @@
  */
 
 /**
+ * スプレッドシートから必要なシートを一括取得してキャッシュ
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
+ * @return {Object} シートオブジェクトのキャッシュ
+ */
+function getSheetCache(spreadsheet) {
+  return {
+    input: spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT),
+    template: spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE),
+    history: spreadsheet.getSheetByName(CONFIG.SHEETS.HISTORY),
+    companyHistory: spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY)
+  };
+}
+
+/**
  * 商品明細の範囲を動的に取得
  * @return {string} 範囲の文字列表現（例: 'A10:D29'）
  */
@@ -64,11 +78,15 @@ function getOrCreateCompanyHistorySheet(spreadsheet) {
  * 宛名履歴を更新
  * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
  * @param {string} companyName 会社名
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} companyHistorySheet 宛名履歴シート（オプション）
  */
-function updateCompanyHistory(spreadsheet, companyName) {
+function updateCompanyHistory(spreadsheet, companyName, companyHistorySheet = null) {
   if (!companyName) return;
   
-  const companyHistorySheet = getOrCreateCompanyHistorySheet(spreadsheet);
+  if (!companyHistorySheet) {
+    companyHistorySheet = getOrCreateCompanyHistorySheet(spreadsheet);
+  }
+  
   const lastRow = companyHistorySheet.getLastRow();
   const currentTime = new Date();
   
@@ -85,16 +103,15 @@ function updateCompanyHistory(spreadsheet, companyName) {
   }
   
   if (foundRow > 0) {
-    // 既存の会社名の場合：最終使用日時と使用回数を更新
+    // 既存の会社名の場合：最終使用日時と使用回数を更新（バッチ操作）
     const currentUsageCount = companyHistorySheet.getRange(foundRow, 3).getValue() || 0;
-    companyHistorySheet.getRange(foundRow, 2).setValue(currentTime);
-    companyHistorySheet.getRange(foundRow, 3).setValue(currentUsageCount + 1);
+    const updateValues = [[currentTime, currentUsageCount + 1]];
+    companyHistorySheet.getRange(foundRow, 2, 1, 2).setValues(updateValues);
   } else {
-    // 新しい会社名の場合：新しい行を追加
+    // 新しい会社名の場合：新しい行を追加（バッチ操作）
     const newRow = lastRow + 1;
-    companyHistorySheet.getRange(newRow, 1).setValue(companyName);
-    companyHistorySheet.getRange(newRow, 2).setValue(currentTime);
-    companyHistorySheet.getRange(newRow, 3).setValue(1);
+    const newValues = [[companyName, currentTime, 1]];
+    companyHistorySheet.getRange(newRow, 1, 1, 3).setValues(newValues);
   }
   
   // 最終使用日時でソート（降順）
@@ -108,10 +125,13 @@ function updateCompanyHistory(spreadsheet, companyName) {
  * 宛名履歴一覧を取得
  * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
  * @param {number} limit 取得する件数の上限（デフォルト: 10）
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} companyHistorySheet 宛名履歴シート（オプション）
  * @return {Array} 会社名の配列（最近使用した順）
  */
-function getCompanyHistory(spreadsheet, limit = 10) {
-  const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+function getCompanyHistory(spreadsheet, limit = 10, companyHistorySheet = null) {
+  if (!companyHistorySheet) {
+    companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+  }
   
   if (!companyHistorySheet || companyHistorySheet.getLastRow() <= 1) {
     return [];
@@ -301,11 +321,14 @@ function setupInputSheetLayout(sheet) {
  * 宛先会社名のドロップダウンを設定
  * 宛名履歴シートから過去に使用した会社名を取得してドロップダウンに設定
  * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet 入力シート
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} companyHistorySheet 宛名履歴シート（オプション）
  */
-function setupCompanyNameDropdown(sheet) {
+function setupCompanyNameDropdown(sheet, companyHistorySheet = null) {
   try {
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const companyHistorySheet = getOrCreateCompanyHistorySheet(spreadsheet);
+    if (!companyHistorySheet) {
+      const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      companyHistorySheet = getOrCreateCompanyHistorySheet(spreadsheet);
+    }
     
     let companyNames = [];
     
@@ -494,21 +517,20 @@ function initialSetup() {
  * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
  */
 function backupExistingSheetsIfNeeded(spreadsheet) {
-  const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-  const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
+  const sheetCache = getSheetCache(spreadsheet);
   
-  if (inputSheet || templateSheet) {
+  if (sheetCache.input || sheetCache.template) {
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd_HHmmss');
     
-    if (inputSheet) {
+    if (sheetCache.input) {
       const newName = `${CONFIG.SHEETS.INPUT}_backup_${timestamp}`;
-      inputSheet.setName(newName);
+      sheetCache.input.setName(newName);
       console.log(`入力シートを ${newName} にバックアップしました`);
     }
     
-    if (templateSheet) {
+    if (sheetCache.template) {
       const newName = `${CONFIG.SHEETS.TEMPLATE}_backup_${timestamp}`;
-      templateSheet.setName(newName);
+      sheetCache.template.setName(newName);
       console.log(`テンプレートシートを ${newName} にバックアップしました`);
     }
   }
@@ -621,22 +643,21 @@ function applyBorders(range, borders) {
 function refreshInputSheetDropdowns() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    const sheetCache = getSheetCache(spreadsheet);
     
-    if (!inputSheet) {
+    if (!sheetCache.input) {
       SpreadsheetApp.getUi().alert('エラー', '入力シートが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
       return;
     }
     
     // 宛名履歴から会社名数を取得
-    const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
     let companyCount = 0;
-    if (companyHistorySheet && companyHistorySheet.getLastRow() > 1) {
-      companyCount = companyHistorySheet.getLastRow() - 1;
+    if (sheetCache.companyHistory && sheetCache.companyHistory.getLastRow() > 1) {
+      companyCount = sheetCache.companyHistory.getLastRow() - 1;
     }
     
-    // ドロップダウンを更新
-    setupCompanyNameDropdown(inputSheet);
+    // ドロップダウンを更新（キャッシュされたシートを使用）
+    setupCompanyNameDropdown(sheetCache.input, sheetCache.companyHistory);
     
     const message = companyCount > 0 
       ? `宛先会社名のドロップダウンを更新しました。\n\n宛名履歴: ${companyCount}件の会社名が利用可能です。\n\nB5セルのドロップダウンから選択できます。`
@@ -677,18 +698,20 @@ function formatDate(date) {
 function calculateTotals() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    const sheetCache = getSheetCache(spreadsheet);
     
-    if (!inputSheet) {
+    if (!sheetCache.input) {
       SpreadsheetApp.getUi().alert('入力シートが見つかりません。');
       return;
     }
     
     // 明細の小計を計算
-    const itemsRange = inputSheet.getRange(getItemsRangeString());
+    const itemsRange = sheetCache.input.getRange(getItemsRangeString());
     const values = itemsRange.getValues();
     
     let subtotal = 0;
+    const updatedValues = [];
+    
     for (let i = 0; i < values.length; i++) {
       const row = values[i];
       if (row[0] && row[1] && row[2]) { // 品目、数量、単価が入力されている場合
@@ -696,21 +719,25 @@ function calculateTotals() {
         const unitPrice = parseFloat(row[2]) || 0;
         const itemSubtotal = quantity * unitPrice;
         
-        // 小計をセルに設定
-        inputSheet.getRange(CONFIG.ITEMS_CONFIG.START_ROW + i, 4).setValue(itemSubtotal);
+        // 更新する値を配列に追加
+        updatedValues.push({ row: CONFIG.ITEMS_CONFIG.START_ROW + i, value: itemSubtotal });
         subtotal += itemSubtotal;
       }
     }
+    
+    // 小計をバッチで更新
+    updatedValues.forEach(update => {
+      sheetCache.input.getRange(update.row, 4).setValue(update.value);
+    });
     
     // 消費税率（10%）
     const taxRate = 0.1;
     const tax = Math.floor(subtotal * taxRate);
     const grandTotal = subtotal + tax;
     
-    // 合計金額をセルに設定
-    inputSheet.getRange(CONFIG.CELLS.TOTAL_AMOUNT).setValue(subtotal);
-    inputSheet.getRange(CONFIG.CELLS.TAX).setValue(tax);
-    inputSheet.getRange(CONFIG.CELLS.GRAND_TOTAL).setValue(grandTotal);
+    // 合計金額をバッチで設定
+    const totalValues = [[subtotal], [tax], [grandTotal]];
+    sheetCache.input.getRange(`${CONFIG.CELLS.TOTAL_AMOUNT}:${CONFIG.CELLS.GRAND_TOTAL}`).setValues(totalValues);
     
     SpreadsheetApp.getUi().alert('計算完了', `合計金額を計算しました。\n\n小計: ${formatCurrency(subtotal)}\n消費税: ${formatCurrency(tax)}\n合計: ${formatCurrency(grandTotal)}`, SpreadsheetApp.getUi().ButtonSet.OK);
     
@@ -737,33 +764,37 @@ function clearInputData() {
     }
     
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    const sheetCache = getSheetCache(spreadsheet);
     
-    if (!inputSheet) {
+    if (!sheetCache.input) {
       SpreadsheetApp.getUi().alert('入力シートが見つかりません。');
       return;
     }
     
-    // 基本情報をクリア
-    inputSheet.getRange(CONFIG.CELLS.DOCUMENT_TYPE).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.ISSUE_DATE).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.DOCUMENT_NUMBER).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.COMPANY_NAME).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.CONTACT_NAME).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.ADDRESS).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.EMAIL).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.REMARKS).clearContent();
+    // 基本情報をバッチでクリア
+    const basicCells = [
+      CONFIG.CELLS.DOCUMENT_TYPE,
+      CONFIG.CELLS.ISSUE_DATE,
+      CONFIG.CELLS.DOCUMENT_NUMBER,
+      CONFIG.CELLS.COMPANY_NAME,
+      CONFIG.CELLS.CONTACT_NAME,
+      CONFIG.CELLS.ADDRESS,
+      CONFIG.CELLS.EMAIL,
+      CONFIG.CELLS.REMARKS
+    ];
+    
+    basicCells.forEach(cellAddress => {
+      sheetCache.input.getRange(cellAddress).clearContent();
+    });
     
     // 明細をクリア
-    inputSheet.getRange(getItemsRangeString()).clearContent();
+    sheetCache.input.getRange(getItemsRangeString()).clearContent();
     
-    // 合計金額をクリア
-    inputSheet.getRange(CONFIG.CELLS.TOTAL_AMOUNT).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.TAX).clearContent();
-    inputSheet.getRange(CONFIG.CELLS.GRAND_TOTAL).clearContent();
+    // 合計金額をバッチでクリア
+    sheetCache.input.getRange(`${CONFIG.CELLS.TOTAL_AMOUNT}:${CONFIG.CELLS.GRAND_TOTAL}`).clearContent();
     
     // シート選択をリセット（テンプレートシートのみ選択状態に）
-    setupSheetSelectionArea(inputSheet);
+    setupSheetSelectionArea(sheetCache.input);
     
     SpreadsheetApp.getUi().alert('入力データをクリアしました。');
     
@@ -780,6 +811,7 @@ function clearInputData() {
 function showCompanyHistory() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetCache = getSheetCache(spreadsheet);
     const companyHistory = getCompanyHistory(spreadsheet, 20); // 最大20件取得
     
     if (companyHistory.length === 0) {
@@ -812,10 +844,9 @@ function showCompanyHistory() {
       if (selectedIndex >= 0 && selectedIndex < companyHistory.length) {
         const selectedCompany = companyHistory[selectedIndex];
         
-        // 入力シートの会社名欄に自動入力
-        const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-        if (inputSheet) {
-          inputSheet.getRange(CONFIG.CELLS.COMPANY_NAME).setValue(selectedCompany);
+        // 入力シートの会社名欄に自動入力（キャッシュされたシートを使用）
+        if (sheetCache.input) {
+          sheetCache.input.getRange(CONFIG.CELLS.COMPANY_NAME).setValue(selectedCompany);
           ui.alert('宛名設定完了', `「${selectedCompany}」を宛先会社名欄に設定しました。`, ui.ButtonSet.OK);
         } else {
           ui.alert('選択完了', `選択された会社名：「${selectedCompany}」\n\n手動で宛先会社名欄にコピーしてください。`, ui.ButtonSet.OK);
@@ -841,34 +872,31 @@ function checkSystemStatus() {
     const issues = [];
     const info = [];
     
-    // シートの存在確認
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-    const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
-    const historySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.HISTORY);
-    const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+    // シートの存在確認（キャッシュを使用）
+    const sheetCache = getSheetCache(spreadsheet);
     
-    if (!inputSheet) {
+    if (!sheetCache.input) {
       issues.push('- 入力シートが存在しません');
     } else {
       info.push('✅ 入力シート: OK');
     }
     
-    if (!templateSheet) {
+    if (!sheetCache.template) {
       issues.push('- テンプレートシートが存在しません');
     } else {
       info.push('✅ テンプレートシート: OK');
     }
     
-    if (!historySheet) {
+    if (!sheetCache.history) {
       info.push('📋 送信履歴シート: 初回送信時に作成されます');
     } else {
       info.push('✅ 送信履歴シート: OK');
     }
     
-    if (!companyHistorySheet) {
+    if (!sheetCache.companyHistory) {
       info.push('📋 宛名履歴シート: 初回送信時に作成されます');
     } else {
-      const companyCount = Math.max(0, companyHistorySheet.getLastRow() - 1);
+      const companyCount = Math.max(0, sheetCache.companyHistory.getLastRow() - 1);
       info.push(`✅ 宛名履歴シート: OK (${companyCount}件の宛名を記録済み)`);
     }
     
@@ -978,15 +1006,14 @@ function setItemRowCount() {
       }
       
       const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-      const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-      const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
+      const sheetCache = getSheetCache(spreadsheet);
       
-      if (inputSheet) {
-        adjustItemRowsVisibility(inputSheet, rowCount);
+      if (sheetCache.input) {
+        adjustItemRowsVisibility(sheetCache.input, rowCount);
       }
       
-      if (templateSheet) {
-        adjustItemRowsVisibility(templateSheet, rowCount);
+      if (sheetCache.template) {
+        adjustItemRowsVisibility(sheetCache.template, rowCount);
       }
       
       ui.alert('設定完了', `明細行数を${rowCount}行に設定しました。`, ui.ButtonSet.OK);
@@ -1129,14 +1156,14 @@ function getSelectedSheetsForExport(inputSheet) {
 function refreshSheetSelection() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    const sheetCache = getSheetCache(spreadsheet);
     
-    if (!inputSheet) {
+    if (!sheetCache.input) {
       SpreadsheetApp.getUi().alert('エラー', '入力シートが見つかりません。', SpreadsheetApp.getUi().ButtonSet.OK);
       return;
     }
     
-    setupSheetSelectionArea(inputSheet);
+    setupSheetSelectionArea(sheetCache.input);
     SpreadsheetApp.getUi().alert('更新完了', 'シート選択エリアを更新しました。', SpreadsheetApp.getUi().ButtonSet.OK);
     
   } catch (error) {

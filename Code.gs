@@ -36,8 +36,11 @@ function sendDocument() {
     // 現在のスプレッドシートを取得
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
     
-    // 入力データを取得
-    const inputData = getInputData(spreadsheet);
+    // シートキャッシュを取得（API呼び出し回数を削減）
+    const sheetCache = getSheetCache(spreadsheet);
+    
+    // 入力データを取得（キャッシュされたシートを使用）
+    const inputData = getInputData(spreadsheet, sheetCache.input);
     
     // 入力データの検証
     if (!validateInputData(inputData)) {
@@ -76,16 +79,15 @@ function sendDocument() {
       sendEmailWithPDF(pdfBlob, inputData);
     }
     
-    // 送信履歴を記録
-    recordSendingHistory(spreadsheet, inputData, savedFile, shouldSendEmail);
+    // 送信履歴を記録（キャッシュされたシートを使用）
+    recordSendingHistory(spreadsheet, inputData, savedFile, shouldSendEmail, sheetCache.history);
     
-    // 宛名履歴を更新
-    updateCompanyHistory(spreadsheet, inputData.companyName);
+    // 宛名履歴を更新（キャッシュされたシートを使用）
+    updateCompanyHistory(spreadsheet, inputData.companyName, sheetCache.companyHistory);
     
-    // 入力シートの会社名ドロップダウンを更新（新しい会社名をすぐに利用可能にする）
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-    if (inputSheet) {
-      setupCompanyNameDropdown(inputSheet);
+    // 入力シートの会社名ドロップダウンを更新（キャッシュされたシートを使用）
+    if (sheetCache.input) {
+      setupCompanyNameDropdown(sheetCache.input, sheetCache.companyHistory);
     }
     
     // バックアップを作成
@@ -107,23 +109,49 @@ function sendDocument() {
 
 /**
  * スプレッドシートから入力データを取得
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} inputSheet 入力シート（オプション）
  */
-function getInputData(spreadsheet) {
-  const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+function getInputData(spreadsheet, inputSheet = null) {
+  // inputSheetが渡されていない場合のみ取得
+  if (!inputSheet) {
+    inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+  }
+  
+  // 基本情報を一括で取得（バッチ操作）
+  const basicDataCells = [
+    CONFIG.CELLS.DOCUMENT_TYPE,
+    CONFIG.CELLS.ISSUE_DATE, 
+    CONFIG.CELLS.DOCUMENT_NUMBER,
+    CONFIG.CELLS.COMPANY_NAME,
+    CONFIG.CELLS.CONTACT_NAME,
+    CONFIG.CELLS.ADDRESS,
+    CONFIG.CELLS.EMAIL,
+    CONFIG.CELLS.REMARKS
+  ];
+  
+  const basicDataValues = [];
+  basicDataCells.forEach(cellAddress => {
+    basicDataValues.push(inputSheet.getRange(cellAddress).getValue());
+  });
+  
+  // 合計金額関連も一括取得
+  const totalsRange = inputSheet.getRange(`${CONFIG.CELLS.TOTAL_AMOUNT}:${CONFIG.CELLS.GRAND_TOTAL}`);
+  const totalsValues = totalsRange.getValues();
   
   const data = {
-    documentType: inputSheet.getRange(CONFIG.CELLS.DOCUMENT_TYPE).getValue(),
-    issueDate: inputSheet.getRange(CONFIG.CELLS.ISSUE_DATE).getValue(),
-    documentNumber: inputSheet.getRange(CONFIG.CELLS.DOCUMENT_NUMBER).getValue(),
-    companyName: inputSheet.getRange(CONFIG.CELLS.COMPANY_NAME).getValue(),
-    contactName: inputSheet.getRange(CONFIG.CELLS.CONTACT_NAME).getValue(),
-    address: inputSheet.getRange(CONFIG.CELLS.ADDRESS).getValue(),
-    email: inputSheet.getRange(CONFIG.CELLS.EMAIL).getValue(),
-    remarks: inputSheet.getRange(CONFIG.CELLS.REMARKS).getValue(),
+    documentType: basicDataValues[0],
+    issueDate: basicDataValues[1],
+    documentNumber: basicDataValues[2],
+    companyName: basicDataValues[3],
+    contactName: basicDataValues[4],
+    address: basicDataValues[5],
+    email: basicDataValues[6],
+    remarks: basicDataValues[7],
     items: getItemsData(inputSheet),
-    totalAmount: inputSheet.getRange(CONFIG.CELLS.TOTAL_AMOUNT).getValue(),
-    tax: inputSheet.getRange(CONFIG.CELLS.TAX).getValue(),
-    grandTotal: inputSheet.getRange(CONFIG.CELLS.GRAND_TOTAL).getValue(),
+    totalAmount: totalsValues[0][0],
+    tax: totalsValues[1][0],
+    grandTotal: totalsValues[2][0],
     exportSheets: getSelectedSheetsForExport(inputSheet)
   };
   
@@ -448,20 +476,26 @@ ${CONFIG.EMAIL.SENDER_DEPARTMENT} ${CONFIG.EMAIL.SENDER_NAME}`;
 
 /**
  * 送信履歴を記録
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
+ * @param {Object} inputData 入力データ
+ * @param {GoogleAppsScript.Drive.File} savedFile 保存されたファイル
+ * @param {boolean} emailSent メール送信フラグ
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} historySheet 履歴シート（オプション）
  */
-function recordSendingHistory(spreadsheet, inputData, savedFile, emailSent) {
-  const historySheet = getOrCreateHistorySheet(spreadsheet);
+function recordSendingHistory(spreadsheet, inputData, savedFile, emailSent, historySheet = null) {
+  if (!historySheet) {
+    historySheet = getOrCreateHistorySheet(spreadsheet);
+  }
   
   const lastRow = historySheet.getLastRow() + 1;
   const timestamp = new Date();
   
-  historySheet.getRange(lastRow, 1).setValue(timestamp);
-  historySheet.getRange(lastRow, 2).setValue(inputData.documentType);
-  historySheet.getRange(lastRow, 3).setValue(inputData.companyName);
-  historySheet.getRange(lastRow, 4).setValue(inputData.email);
-  historySheet.getRange(lastRow, 5).setValue(savedFile.getName());
-  historySheet.getRange(lastRow, 6).setValue(savedFile.getUrl());
-  historySheet.getRange(lastRow, 7).setValue(emailSent ? 'はい' : 'いいえ');
+  // バッチ操作で一度に複数のセルを更新
+  const values = [
+    [timestamp, inputData.documentType, inputData.companyName, inputData.email, savedFile.getName(), savedFile.getUrl(), emailSent ? 'はい' : 'いいえ']
+  ];
+  
+  historySheet.getRange(lastRow, 1, 1, 7).setValues(values);
 }
 
 /**
@@ -498,11 +532,11 @@ function createBackupDocument(inputData, savedFile) {
 function updateIssueDateOnOpen() {
   try {
     const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
+    const sheetCache = getSheetCache(spreadsheet);
     
-    if (inputSheet) {
+    if (sheetCache.input) {
       // 発行日を今日の日付に設定
-      inputSheet.getRange(CONFIG.CELLS.ISSUE_DATE).setValue(new Date());
+      sheetCache.input.getRange(CONFIG.CELLS.ISSUE_DATE).setValue(new Date());
     }
   } catch (error) {
     console.error('発行日自動更新エラー:', error);
