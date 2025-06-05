@@ -596,7 +596,7 @@ function inheritTemplateFormatting(templateSheet) {
 function applyTemplateFormatting(templateSheet, formatting) {
   try {
     // まず、余計な書式をクリア（G列以降の不要な書式を除去）
-    const clearRange = templateSheet.getRange('G1:Z100');
+    const clearRange = templateSheet.getRange('G1:Z50');
     clearRange.clearFormat();
     
     // 保存された書式を適用
