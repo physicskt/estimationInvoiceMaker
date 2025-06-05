@@ -517,21 +517,20 @@ function initialSetup() {
  * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} spreadsheet スプレッドシート
  */
 function backupExistingSheetsIfNeeded(spreadsheet) {
-  const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-  const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
+  const sheetCache = getSheetCache(spreadsheet);
   
-  if (inputSheet || templateSheet) {
+  if (sheetCache.input || sheetCache.template) {
     const timestamp = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyyMMdd_HHmmss');
     
-    if (inputSheet) {
+    if (sheetCache.input) {
       const newName = `${CONFIG.SHEETS.INPUT}_backup_${timestamp}`;
-      inputSheet.setName(newName);
+      sheetCache.input.setName(newName);
       console.log(`入力シートを ${newName} にバックアップしました`);
     }
     
-    if (templateSheet) {
+    if (sheetCache.template) {
       const newName = `${CONFIG.SHEETS.TEMPLATE}_backup_${timestamp}`;
-      templateSheet.setName(newName);
+      sheetCache.template.setName(newName);
       console.log(`テンプレートシートを ${newName} にバックアップしました`);
     }
   }
@@ -873,34 +872,31 @@ function checkSystemStatus() {
     const issues = [];
     const info = [];
     
-    // シートの存在確認
-    const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-    const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
-    const historySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.HISTORY);
-    const companyHistorySheet = spreadsheet.getSheetByName(CONFIG.SHEETS.COMPANY_HISTORY);
+    // シートの存在確認（キャッシュを使用）
+    const sheetCache = getSheetCache(spreadsheet);
     
-    if (!inputSheet) {
+    if (!sheetCache.input) {
       issues.push('- 入力シートが存在しません');
     } else {
       info.push('✅ 入力シート: OK');
     }
     
-    if (!templateSheet) {
+    if (!sheetCache.template) {
       issues.push('- テンプレートシートが存在しません');
     } else {
       info.push('✅ テンプレートシート: OK');
     }
     
-    if (!historySheet) {
+    if (!sheetCache.history) {
       info.push('📋 送信履歴シート: 初回送信時に作成されます');
     } else {
       info.push('✅ 送信履歴シート: OK');
     }
     
-    if (!companyHistorySheet) {
+    if (!sheetCache.companyHistory) {
       info.push('📋 宛名履歴シート: 初回送信時に作成されます');
     } else {
-      const companyCount = Math.max(0, companyHistorySheet.getLastRow() - 1);
+      const companyCount = Math.max(0, sheetCache.companyHistory.getLastRow() - 1);
       info.push(`✅ 宛名履歴シート: OK (${companyCount}件の宛名を記録済み)`);
     }
     
@@ -1010,15 +1006,14 @@ function setItemRowCount() {
       }
       
       const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-      const inputSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.INPUT);
-      const templateSheet = spreadsheet.getSheetByName(CONFIG.SHEETS.TEMPLATE);
+      const sheetCache = getSheetCache(spreadsheet);
       
-      if (inputSheet) {
-        adjustItemRowsVisibility(inputSheet, rowCount);
+      if (sheetCache.input) {
+        adjustItemRowsVisibility(sheetCache.input, rowCount);
       }
       
-      if (templateSheet) {
-        adjustItemRowsVisibility(templateSheet, rowCount);
+      if (sheetCache.template) {
+        adjustItemRowsVisibility(sheetCache.template, rowCount);
       }
       
       ui.alert('設定完了', `明細行数を${rowCount}行に設定しました。`, ui.ButtonSet.OK);
